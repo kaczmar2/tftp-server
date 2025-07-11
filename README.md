@@ -1,10 +1,10 @@
 # TFTP Server Docker Image
 
-[![Docker Build](https://github.com/kaczmar2/tftp-hpa/actions/workflows/docker-build.yml/badge.svg)](https://github.com/kaczmar2/tftp-hpa/actions/workflows/docker-build.yml)
+[![Docker Build](https://github.com/kaczmar2/tftp-hpa/actions/workflows/docker-build-alpine.yml/badge.svg)](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/docker-build.yml)
 
-Docker Hub: [https://hub.docker.com/r/kaczmar2/tftp-hpa](https://hub.docker.com/r/kaczmar2/tftp-hpa)
+Docker Hub: [https://hub.docker.com/r/kaczmar2/tftp-hpa-alpine](https://hub.docker.com/r/kaczmar2/tftp-hpa-alpine)
 
-A minimal, secure TFTP server based on `docker-alpine` and `tftpd-hpa`.
+A minimal, secure TFTP server based on `alpine` and `tftpd-hpa`.
 
 ## Quick Start
 
