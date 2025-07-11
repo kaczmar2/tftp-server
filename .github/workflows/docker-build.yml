@@ -31,21 +31,22 @@ jobs:
         context: .
         platforms: linux/amd64
         push: false
-        tags: kaczmar2/tftp-hpa:test
+        tags: kaczmar2/tftp-hpa-alpine:test
         load: true
         
     - name: Test image can start
       run: |
         # Create test directory
-        mkdir -p /tmp/tftp-test
-        uname -a > /tmp/tftp-test/test
+        sudo mkdir -p /srv/docker/tftp
+        sudo chown -R $USER:$USER /srv/docker
+        sudo chmod -R 755 /srv/docker/tftp
         
         # Start container
         docker run -d \
           --name tftp-test \
           --network host \
-          -v /tmp/tftp-test:/srv/tftp \
-          kaczmar2/tftp-hpa:test
+          -v /srv/docker/tftp:/srv/tftp \
+          kaczmar2/tftp-hpa-alpine:test
           
         # Wait for startup
         sleep 3
@@ -58,23 +59,22 @@ jobs:
         
     - name: Test TFTP functionality
       run: |
-        # Change to temp directory for test
-        cd /tmp
-        
         # Test TFTP download
+        cd /tmp
+        uname -a > /srv/docker/tftp/test
         echo "get test" | tftp localhost
         
         # Verify file was downloaded and content matches
         if [ -f test ]; then
           echo "✅ File downloaded successfully"
-          if diff test /tmp/tftp-test/test; then
+          if diff test /srv/docker/tftp/test; then
             echo "✅ File content matches"
           else
             echo "❌ File content differs"
             echo "Downloaded file:"
             cat test
             echo "Original file:"
-            cat /tmp/tftp-test/test
+            cat /srv/docker/tftp/test
             exit 1
           fi
         else
@@ -104,7 +104,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: kaczmar2/tftp-hpa
+        images: kaczmar2/tftp-hpa-alpine
         tags: |
           type=semver,pattern={{version}}
 

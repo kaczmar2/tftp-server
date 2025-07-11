@@ -31,7 +31,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         # Get the digest using docker pull (multi-platform images require this approach)
-        CURRENT_DIGEST=$(docker pull debian:bookworm-slim 2>&1 | grep "Digest:" | sed 's/.*Digest: //' || echo "")
+        CURRENT_DIGEST=$(docker pull alpine:latest 2>&1 | grep "Digest:" | sed 's/.*Digest: //' || echo "")
         
         # Get the digest from GitHub repository variable
         LAST_DIGEST="${{ vars.LAST_BASE_DIGEST }}"
@@ -104,21 +104,23 @@ jobs:
         context: .
         platforms: linux/amd64
         push: false
-        tags: kaczmar2/tftp-hpa:base-update-test
+        tags: kaczmar2/tftp-hpa-alpine:base-update-test
         load: true
         
     - name: Test image can start
       run: |
         # Create test directory
-        mkdir -p /tmp/tftp-test
-        uname -a > /tmp/tftp-test/test
+        sudo mkdir -p /srv/docker/tftp
+        sudo chown -R $USER:$USER /srv/docker
+        sudo chmod -R 755 /srv/docker/tftp
+        uname -a > /srv/docker/tftp/test
         
         # Start container
         docker run -d \
           --name tftp-test \
           --network host \
-          -v /tmp/tftp-test:/srv/tftp \
-          kaczmar2/tftp-hpa:base-update-test
+          -v /srv/docker/tftp:/srv/tftp \
+          kaczmar2/tftp-hpa-alpine:base-update-test
           
         # Wait for startup
         sleep 3
@@ -140,14 +142,14 @@ jobs:
         # Verify file was downloaded and content matches
         if [ -f test ]; then
           echo "✅ File downloaded successfully"
-          if diff test /tmp/tftp-test/test; then
+          if diff test /srv/docker/tftp/test; then
             echo "✅ File content matches"
           else
             echo "❌ File content differs"
             echo "Downloaded file:"
             cat test
             echo "Original file:"
-            cat /tmp/tftp-test/test
+            cat /srv/docker/tftp/test
             exit 1
           fi
         else
@@ -175,7 +177,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: kaczmar2/tftp-hpa
+        images: kaczmar2/tftp-hpa-alpine
         tags: |
           type=raw,value=${{ steps.version.outputs.version }}
 

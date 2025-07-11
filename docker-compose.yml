@@ -1,7 +1,7 @@
 services:
   tftp:
     container_name: tftp-server
-    image: kaczmar2/tftp-hpa
+    image: kaczmar2/tftp-hpa-alpine
     restart: unless-stopped
     network_mode: host
     environment:
