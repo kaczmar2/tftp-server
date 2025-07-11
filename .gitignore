@@ -1,0 +1,35 @@
+# Docker
+.dockerignore
+docker-compose.override.yml
+.env
+.env.local
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Claude settings (keep local settings private)
+.claude/settings.local.json
+
+# TFTP test files (avoid committing served files)
+/srv/
+/tftp-root/
+test-files/
+CLAUDE.md

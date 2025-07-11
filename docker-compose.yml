@@ -1,0 +1,11 @@
+services:
+  tftp:
+    container_name: tftp-server
+    image: kaczmar2/tftp-hpa
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
+      - /etc/localtime:/etc/localtime:ro

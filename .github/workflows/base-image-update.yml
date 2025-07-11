@@ -1,0 +1,197 @@
+name: Base Image Update Check
+
+on:
+  schedule:
+    # Check daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+    inputs:
+      dry_run:
+        description: 'Dry run mode (check only, no build/deploy)'
+        required: false
+        default: false
+        type: boolean
+
+permissions: write-all
+
+jobs:
+  check-base-image:
+    runs-on: ubuntu-latest
+    outputs:
+      should-rebuild: ${{ steps.check.outputs.should-rebuild }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check for base image updates
+      id: check
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # Get the digest using docker pull (multi-platform images require this approach)
+        CURRENT_DIGEST=$(docker pull debian:bookworm-slim 2>&1 | grep "Digest:" | sed 's/.*Digest: //' || echo "")
+        
+        # Get the digest from GitHub repository variable
+        LAST_DIGEST="${{ vars.LAST_BASE_DIGEST }}"
+        
+        echo "Current digest: $CURRENT_DIGEST"
+        echo "Last digest: $LAST_DIGEST"
+        
+        if [ "$CURRENT_DIGEST" != "$LAST_DIGEST" ] && [ "$CURRENT_DIGEST" != "" ]; then
+          echo "Base image has been updated!"
+          echo "should-rebuild=true" >> $GITHUB_OUTPUT
+          # Save digest to GitHub variable
+          gh variable set LAST_BASE_DIGEST --body "$CURRENT_DIGEST"
+        else
+          echo "Base image has not changed"
+          echo "should-rebuild=false" >> $GITHUB_OUTPUT
+        fi
+
+  build-test-deploy:
+    needs: check-base-image
+    if: needs.check-base-image.outputs.should-rebuild == 'true' && inputs.dry_run != true
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # Get the latest commit with the updated digest
+        ref: main
+        fetch-depth: 0  # Fetch all history for proper version calculation
+        
+    - name: Calculate next version
+      id: version
+      run: |
+        # Get the latest tag, or start with 1.0.0 if no tags exist
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "Latest tag: $LATEST_TAG"
+        
+        # Remove 'v' prefix if present
+        VERSION=${LATEST_TAG#v}
+        
+        # Parse version components
+        IFS='.' read -ra VERSION_PARTS <<< "$VERSION"
+        MAJOR=${VERSION_PARTS[0]:-1}
+        MINOR=${VERSION_PARTS[1]:-0}
+        PATCH=${VERSION_PARTS[2]:-0}
+        
+        # Increment patch version
+        NEW_PATCH=$((PATCH + 1))
+        NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+        NEW_TAG="v$NEW_VERSION"
+        
+        echo "New version: $NEW_VERSION"
+        echo "New tag: $NEW_TAG"
+        
+        # Set outputs
+        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Install TFTP client
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq tftp-hpa
+        
+    - name: Build Docker image (single platform for testing)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: kaczmar2/tftp-hpa:base-update-test
+        load: true
+        
+    - name: Test image can start
+      run: |
+        # Create test directory
+        mkdir -p /tmp/tftp-test
+        uname -a > /tmp/tftp-test/test
+        
+        # Start container
+        docker run -d \
+          --name tftp-test \
+          --network host \
+          -v /tmp/tftp-test:/srv/tftp \
+          kaczmar2/tftp-hpa:base-update-test
+          
+        # Wait for startup
+        sleep 3
+        
+        # Check if container is running
+        docker ps | grep tftp-test
+        
+        # Check logs for startup message
+        docker logs tftp-test | grep "Starting tftpd"
+        
+    - name: Test TFTP functionality
+      run: |
+        # Change to temp directory for test
+        cd /tmp
+        
+        # Test TFTP download
+        echo "get test" | tftp localhost
+        
+        # Verify file was downloaded and content matches
+        if [ -f test ]; then
+          echo "✅ File downloaded successfully"
+          if diff test /tmp/tftp-test/test; then
+            echo "✅ File content matches"
+          else
+            echo "❌ File content differs"
+            echo "Downloaded file:"
+            cat test
+            echo "Original file:"
+            cat /tmp/tftp-test/test
+            exit 1
+          fi
+        else
+          echo "❌ File was not downloaded"
+          exit 1
+        fi
+        
+        # Check TFTP logs for request
+        docker logs tftp-test | grep "RRQ from"
+        
+    - name: Cleanup test container
+      if: always()
+      run: |
+        docker stop tftp-test || true
+        docker rm tftp-test || true
+        rm -f /tmp/test
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: kaczmar2/tftp-hpa
+        tags: |
+          type=raw,value=${{ steps.version.outputs.version }}
+
+    - name: Build and push to Docker Hub
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64,linux/arm/v7
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        
+    - name: Create Git Tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a "${{ steps.version.outputs.tag }}" -m "Automatic base image update to ${{ steps.version.outputs.version }}"
+        git push origin "${{ steps.version.outputs.tag }}"
+        

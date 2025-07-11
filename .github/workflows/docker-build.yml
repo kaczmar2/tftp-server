@@ -1,0 +1,119 @@
+name: Docker Build, Test and Publish
+
+on:
+  push:
+    branches: [ main ]
+    tags: 
+      - v*
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Install TFTP client
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq tftp-hpa
+      
+    - name: Build Docker image (single platform for testing)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: kaczmar2/tftp-hpa:test
+        load: true
+        
+    - name: Test image can start
+      run: |
+        # Create test directory
+        mkdir -p /tmp/tftp-test
+        uname -a > /tmp/tftp-test/test
+        
+        # Start container
+        docker run -d \
+          --name tftp-test \
+          --network host \
+          -v /tmp/tftp-test:/srv/tftp \
+          kaczmar2/tftp-hpa:test
+          
+        # Wait for startup
+        sleep 3
+        
+        # Check if container is running
+        docker ps | grep tftp-test
+        
+        # Check logs for startup message
+        docker logs tftp-test | grep "Starting tftpd"
+        
+    - name: Test TFTP functionality
+      run: |
+        # Change to temp directory for test
+        cd /tmp
+        
+        # Test TFTP download
+        echo "get test" | tftp localhost
+        
+        # Verify file was downloaded and content matches
+        if [ -f test ]; then
+          echo "✅ File downloaded successfully"
+          if diff test /tmp/tftp-test/test; then
+            echo "✅ File content matches"
+          else
+            echo "❌ File content differs"
+            echo "Downloaded file:"
+            cat test
+            echo "Original file:"
+            cat /tmp/tftp-test/test
+            exit 1
+          fi
+        else
+          echo "❌ File was not downloaded"
+          exit 1
+        fi
+        
+        # Check TFTP logs for request
+        docker logs tftp-test | grep "RRQ from"
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        docker stop tftp-test || true
+        docker rm tftp-test || true
+        rm -f /tmp/test
+
+    - name: Login to Docker Hub
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Extract metadata
+      if: startsWith(github.ref, 'refs/tags/v')
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: kaczmar2/tftp-hpa
+        tags: |
+          type=semver,pattern={{version}}
+
+    - name: Build and push to Docker Hub
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64,linux/arm/v7
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
