@@ -1,6 +1,6 @@
 # TFTP Server Docker Image
 
-[![Docker Build](https://github.com/kaczmar2/tftp-hpa/actions/workflows/docker-build-alpine.yml/badge.svg)](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/docker-build.yml)
+[![Docker Build, Test and Publish](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/docker-build.yml/badge.svg)](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/docker-build.yml)
 
 Docker Hub: [https://hub.docker.com/r/kaczmar2/tftp-hpa-alpine](https://hub.docker.com/r/kaczmar2/tftp-hpa-alpine)
 
