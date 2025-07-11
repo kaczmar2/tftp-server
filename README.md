@@ -4,7 +4,7 @@
 
 Docker Hub: [https://hub.docker.com/r/kaczmar2/tftp-hpa](https://hub.docker.com/r/kaczmar2/tftp-hpa)
 
-A minimal, secure TFTP server based on `debian:bookworm-slim` and `tftpd-hpa`.
+A minimal, secure TFTP server based on `docker-alpine` and `tftpd-hpa`.
 
 ## Quick Start
 
@@ -15,10 +15,10 @@ A minimal, secure TFTP server based on `debian:bookworm-slim` and `tftpd-hpa`.
 mkdir -p ~/docker/tftp-server && cd ~/docker/tftp-server
 
 # Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/kaczmar2/tftp-hpa/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/kaczmar2/tftp-hpa-alpine/main/docker-compose.yml
 
 # Create .env file for configuration (optional)
-curl -O https://raw.githubusercontent.com/kaczmar2/tftp-hpa/main/.env.example
+curl -O https://raw.githubusercontent.com/kaczmar2/tftp-hpa-alpine/main/.env.example
 cp .env.example .env
 # Edit .env to set TZ and TFTP_ROOT if needed
 
@@ -56,7 +56,7 @@ docker run -d \
 services:
   tftp:
     container_name: tftp-server
-    image: kaczmar2/tftp-hpa
+    image: kaczmar2/tftp-hpa-alpine
     restart: unless-stopped
     network_mode: host
     environment:
