@@ -22,10 +22,8 @@ curl -O https://raw.githubusercontent.com/kaczmar2/tftp-hpa-alpine/main/.env.exa
 cp .env.example .env
 # Edit .env to set TZ and TFTP_ROOT if needed
 
-# set up Docker bind mount
+# Create Docker bind mount directory
 sudo mkdir -p /srv/docker/tftp
-sudo chown -R $USER:$USER /srv/docker
-sudo chmod -R 755 /srv/docker/tftp
 
 # Pull and start
 docker compose up -d
@@ -45,7 +43,7 @@ docker run -d \
   -e TZ=America/New_York \
   -v /srv/docker/tftp:/srv/tftp \
   -v /etc/localtime:/etc/localtime:ro \
-  kaczmar2/tftp-hpa
+  kaczmar2/tftp-hpa-alpine
 ```
 
 ## Configuration
