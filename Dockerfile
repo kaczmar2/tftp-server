@@ -9,7 +9,7 @@ EXPOSE 69/udp
 
 # Set up TFTP root directory
 RUN mkdir -p /srv/tftp && \
-    chown nobody:nogroup /srv/tftp && \
+    chown nobody:nobody /srv/tftp && \
     chmod 755 /srv/tftp
 
 # Set working directory
