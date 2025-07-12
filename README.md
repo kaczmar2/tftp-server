@@ -89,7 +89,7 @@ Test file download:
 
 ```
 cd /tmp
-uname -a > /srv/docker/tftp/test
+uname -a | sudo tee /srv/docker/tftp/test
 tftp localhost
 tftp> get test
 tftp> quit
