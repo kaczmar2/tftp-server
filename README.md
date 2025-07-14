@@ -40,43 +40,13 @@ docker run -d \
   --name tftp-server \
   --network host \
   --restart unless-stopped \
-  -e TZ=America/New_York \
+  -e TZ=America/Denver \
   -v /srv/docker/tftp:/srv/tftp \
   -v /etc/localtime:/etc/localtime:ro \
   kaczmar2/tftp-hpa-alpine
 ```
 
 ## Configuration
-
-### Customizing TFTP Options
-
-You can customize TFTP daemon behavior using the `TFTP_ARGS` environment variable. You can pass any valid `in.tftpd` options while keeping the current defaults:
-
-**Examples:**
-
-```bash
-# Enable file uploads (requires write permissions on mounted directory)
-docker run -d \
-  --name tftp-server \
-  --network host \
-  -e TFTP_ARGS="--foreground --secure --create --user nobody" \
-  -v /srv/docker/tftp:/srv/tftp \
-  kaczmar2/tftp-hpa-alpine
-
-# Additional options (timeout, umask, etc.)
-docker run -d \
-  --name tftp-server \
-  --network host \
-  -e TFTP_ARGS="--foreground --secure --create --timeout 300 --umask 022 --user nobody" \
-  -v /srv/docker/tftp:/srv/tftp \
-  kaczmar2/tftp-hpa-alpine
-```
-
-**Important limitations:**
-- Always include `--foreground --user nobody`
-- Don't use `--listen` as it conflicts with `--foreground`
-- Can't change the TFTP root directory from `/srv/tftp`
-- For uploads with `--create`, the container process needs write access to the mounted directory
 
 ### Docker Compose Setup
 
@@ -171,3 +141,42 @@ This container **requires** `network_mode: host` because:
 ### Firewall
 
 Ensure UDP port 69 is accessible.
+
+## Custom TFTP Options
+
+The container supports customizing TFTP daemon behavior via the `TFTP_ARGS` environment variable. You can pass any valid `in.tftpd` options while keeping the current defaults as the base.
+
+### Docker Run Example
+
+```bash
+# Start container with --create flag to enable uploads
+docker run -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" kaczmar2/tftp-hpa-alpine
+```
+
+### Docker Compose Examples
+
+Add to your `.env` file:
+
+```bash
+# Enable write access with custom settings
+TFTP_ARGS="-foreground --secure --create --verbosity 4 --user nobody"
+```
+
+### Available Options
+
+See the [tftpd man page](https://manpages.debian.org/testing/tftpd-hpa/tftpd.8.en.html) for all available options. 
+
+### Limitations
+
+When customizing `TFTP_ARGS`, note these restrictions:
+
+- **Required options**: Always include `--foreground --user nobody` for proper container operation and security
+- **Conflicting options**: Don't use `--listen` as it conflicts with `--foreground` (required for containers)
+- **Security**: Avoid changing `--user` from `nobody` as this breaks the container's security model
+- **Directory**: The TFTP root directory is fixed to `/srv/tftp` and cannot be changed via arguments
+
+### File Permissions for Uploads
+
+**Note**: Setting up host directory permissions for TFTP uploads is beyond the scope of this README, as requirements vary by environment. 
+
+For general guidance when using `--create`: the container process needs write access to the mounted directory. This typically involves setting appropriate permissions on the host directory before starting the container.
