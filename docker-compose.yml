@@ -6,6 +6,7 @@ services:
     network_mode: host
     environment:
       - TZ=${TZ:-UTC}
+      # - TFTP_ARGS=${TFTP_ARGS:-}  # Optional: Override default TFTP arguments (uncomment to customize)
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - /etc/localtime:/etc/localtime:ro

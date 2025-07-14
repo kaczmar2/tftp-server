@@ -107,18 +107,20 @@ jobs:
         tags: kaczmar2/tftp-hpa-alpine:base-update-test
         load: true
         
-    - name: Test image can start
+    - name: Set up TFTP test environment
       run: |
-        # Create test directory
+        # Set up Docker bind mount
         sudo mkdir -p /srv/docker/tftp
         sudo chown -R $USER:$USER /srv/docker
         sudo chmod -R 755 /srv/docker/tftp
-        uname -a > /srv/docker/tftp/test
         
+    - name: Test image can start
+      run: |
         # Start container
         docker run -d \
           --name tftp-test \
           --network host \
+          -e TZ=America/Denver \
           -v /srv/docker/tftp:/srv/tftp \
           kaczmar2/tftp-hpa-alpine:base-update-test
           
@@ -137,6 +139,7 @@ jobs:
         cd /tmp
         
         # Test TFTP download
+        uname -a | sudo tee /srv/docker/tftp/test
         echo "get test" | tftp localhost
         
         # Verify file was downloaded and content matches
