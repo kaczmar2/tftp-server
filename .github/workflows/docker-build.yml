@@ -94,6 +94,9 @@ jobs:
         docker stop tftp-test || true
         docker rm tftp-test || true
         
+        # Set permissions for upload testing
+        sudo chmod -R 777 /srv/docker/tftp
+        
         # Start container with upload capability (--create flag)
         docker run -d \
           --name tftp-test \
