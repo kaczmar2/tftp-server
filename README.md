@@ -48,6 +48,36 @@ docker run -d \
 
 ## Configuration
 
+### Customizing TFTP Options
+
+You can customize TFTP daemon behavior using the `TFTP_ARGS` environment variable. You can pass any valid `in.tftpd` options while keeping the current defaults:
+
+**Examples:**
+
+```bash
+# Enable file uploads (requires write permissions on mounted directory)
+docker run -d \
+  --name tftp-server \
+  --network host \
+  -e TFTP_ARGS="--foreground --secure --create --user nobody" \
+  -v /srv/docker/tftp:/srv/tftp \
+  kaczmar2/tftp-hpa-alpine
+
+# Additional options (timeout, umask, etc.)
+docker run -d \
+  --name tftp-server \
+  --network host \
+  -e TFTP_ARGS="--foreground --secure --create --timeout 300 --umask 022 --user nobody" \
+  -v /srv/docker/tftp:/srv/tftp \
+  kaczmar2/tftp-hpa-alpine
+```
+
+**Important limitations:**
+- Always include `--foreground --user nobody`
+- Don't use `--listen` as it conflicts with `--foreground`
+- Can't change the TFTP root directory from `/srv/tftp`
+- For uploads with `--create`, the container process needs write access to the mounted directory
+
 ### Docker Compose Setup
 
 ```yaml
