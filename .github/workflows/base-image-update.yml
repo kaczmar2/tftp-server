@@ -31,13 +31,13 @@ jobs:
     - name: Check for base image updates
       id: check
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Get the digest using docker pull (multi-platform images require this approach)
         CURRENT_DIGEST=$(docker pull alpine:latest 2>&1 | grep "Digest:" | sed 's/.*Digest: //' || echo "")
         
         # Get the digest from GitHub repository variable using REST API
-        LAST_DIGEST=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+        LAST_DIGEST=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/${{ github.repository }}/actions/variables/LAST_BASE_DIGEST" \
           | jq -r '.value // ""' 2>/dev/null || echo "")
@@ -50,12 +50,12 @@ jobs:
           echo "should-rebuild=true" >> $GITHUB_OUTPUT
           # Save digest to GitHub variable using REST API
           curl -s -X PATCH \
-            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/actions/variables/LAST_BASE_DIGEST" \
             -d "{\"name\":\"LAST_BASE_DIGEST\",\"value\":\"$CURRENT_DIGEST\"}" \
             || curl -s -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/actions/variables" \
             -d "{\"name\":\"LAST_BASE_DIGEST\",\"value\":\"$CURRENT_DIGEST\"}"
