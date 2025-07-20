@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should-rebuild: ${{ steps.check.outputs.should-rebuild }}
+      digest: ${{ steps.check.outputs.digest }}
       
     steps:
     - name: Checkout code
@@ -62,6 +63,7 @@ jobs:
         if [ "$CURRENT_DIGEST" != "$LAST_DIGEST" ] && [ "$CURRENT_DIGEST" != "" ]; then
           echo "Base image has been updated!"
           echo "should-rebuild=true" >> $GITHUB_OUTPUT
+          echo "digest=$CURRENT_DIGEST" >> $GITHUB_OUTPUT
           
           # Save digest to GitHub variable using REST API
           echo "Updating GitHub variable..."
@@ -285,6 +287,6 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git tag -a "${{ steps.version.outputs.tag }}" -m "Automatic base image update to ${{ steps.version.outputs.version }}"
+        git tag -a "${{ steps.version.outputs.tag }}" -m "Automatic base image update: alpine:latest ${{ needs.check-base-image.outputs.digest }}"
         git push origin "${{ steps.version.outputs.tag }}"
         
