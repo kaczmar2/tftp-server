@@ -101,7 +101,7 @@ jobs:
       id: version
       run: |
         # Get the latest tag, or start with 1.0.0 if no tags exist
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
         echo "Latest tag: $LATEST_TAG"
         
         # Remove 'v' prefix if present
@@ -118,6 +118,8 @@ jobs:
         NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
         NEW_TAG="v$NEW_VERSION"
         
+        echo "Preserving major.minor: $MAJOR.$MINOR"
+        echo "Incrementing patch: $PATCH -> $NEW_PATCH"
         echo "New version: $NEW_VERSION"
         echo "New tag: $NEW_TAG"
         
@@ -268,7 +270,7 @@ jobs:
       with:
         images: kaczmar2/tftp-hpa-alpine
         tags: |
-          type=raw,value=${{ steps.version.outputs.version }}
+          type=semver,pattern={{version}},value=${{ steps.version.outputs.tag }}
 
     - name: Build and push to Docker Hub
       uses: docker/build-push-action@v5
