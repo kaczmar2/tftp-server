@@ -31,7 +31,7 @@ jobs:
     - name: Check for base image updates
       id: check
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GH_ACTIONS_PAT }}
       run: |
         # Get the digest using docker pull (multi-platform images require this approach)
         CURRENT_DIGEST=$(docker pull alpine:latest 2>&1 | grep "Digest:" | sed 's/.*Digest: //' || echo "")
