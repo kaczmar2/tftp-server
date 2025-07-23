@@ -287,6 +287,6 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git tag -a "${{ steps.version.outputs.tag }}" -m "Automatic base image update: alpine:latest ${{ needs.check-base-image.outputs.digest }}"
+        git tag -a "${{ steps.version.outputs.tag }}" -m "Automatic base image update: ${{ needs.check-base-image.outputs.digest }}"
         git push origin "${{ steps.version.outputs.tag }}"
         
