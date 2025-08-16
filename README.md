@@ -1,8 +1,8 @@
 # TFTP Server Docker Image
 
-[![Docker Build, Test and Publish](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/docker-build.yml/badge.svg)](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/docker-build.yml) [![Base Image Update Check](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/base-image-update.yml/badge.svg)](https://github.com/kaczmar2/tftp-hpa-alpine/actions/workflows/base-image-update.yml)
+[![Docker Build, Test and Publish](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml) [![Base Image Update Check](https://github.com/kaczmar2/tftp-server/actions/workflows/base-image-update.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/base-image-update.yml)
 
-Docker Hub: [https://hub.docker.com/r/kaczmar2/tftp-hpa-alpine](https://hub.docker.com/r/kaczmar2/tftp-hpa-alpine)
+Docker Hub: [https://hub.docker.com/r/kaczmar2/tftp-server](https://hub.docker.com/r/kaczmar2/tftp-server)
 
 A minimal, secure TFTP server based on `alpine` and `tftpd-hpa`.
 
@@ -15,10 +15,10 @@ A minimal, secure TFTP server based on `alpine` and `tftpd-hpa`.
 mkdir -p ~/docker/tftp-server && cd ~/docker/tftp-server
 
 # Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/kaczmar2/tftp-hpa-alpine/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/kaczmar2/tftp-server/main/docker-compose.yml
 
 # Create .env file for configuration (optional)
-curl -O https://raw.githubusercontent.com/kaczmar2/tftp-hpa-alpine/main/.env.example
+curl -O https://raw.githubusercontent.com/kaczmar2/tftp-server/main/.env.example
 cp .env.example .env
 # Edit .env to set TZ and TFTP_ROOT if needed
 
@@ -43,7 +43,7 @@ docker run -d \
   -e TZ=America/Denver \
   -v /srv/docker/tftp:/srv/tftp \
   -v /etc/localtime:/etc/localtime:ro \
-  kaczmar2/tftp-hpa-alpine
+  kaczmar2/tftp-hpa-server
 ```
 
 ## Configuration
@@ -54,7 +54,7 @@ docker run -d \
 services:
   tftp:
     container_name: tftp-server
-    image: kaczmar2/tftp-hpa-alpine
+    image: kaczmar2/tftp-server
     restart: unless-stopped
     network_mode: host
     environment:
@@ -150,7 +150,7 @@ The container supports customizing TFTP daemon behavior via the `TFTP_ARGS` envi
 
 ```bash
 # Start container with --create flag to enable uploads
-docker run -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" kaczmar2/tftp-hpa-alpine
+docker run -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" kaczmar2/tftp-server
 ```
 
 ### Docker Compose Examples
