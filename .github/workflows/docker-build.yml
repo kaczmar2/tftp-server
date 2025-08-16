@@ -1,4 +1,4 @@
-name: Docker Build, Test and Publish
+name: Docker Build, Test and Publish Multi-Image
 
 on:
   push:
@@ -12,6 +12,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [server, server-web]
+        include:
+          - variant: server
+            dockerfile: ./server/Dockerfile
+            image_name: kaczmar2/tftp-server
+            context: ./server
+          - variant: server-web
+            dockerfile: ./server-web/Dockerfile
+            image_name: kaczmar2/tftp-server-web
+            context: ./server-web
     
     steps:
     - name: Checkout code
@@ -28,10 +40,11 @@ jobs:
     - name: Build Docker image (single platform for testing)
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
         platforms: linux/amd64
         push: false
-        tags: kaczmar2/tftp-hpa-alpine:test
+        tags: ${{ matrix.image_name }}:test
         load: true
         
     - name: Set up TFTP test environment
@@ -45,20 +58,20 @@ jobs:
       run: |
         # Start container
         docker run -d \
-          --name tftp-test \
+          --name tftp-test-${{ matrix.variant }} \
           --network host \
           -e TZ=America/Denver \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-hpa-alpine:test
+          ${{ matrix.image_name }}:test
           
         # Wait for startup
         sleep 3
         
         # Check if container is running
-        docker ps | grep tftp-test
+        docker ps | grep tftp-test-${{ matrix.variant }}
         
         # Check logs for startup message
-        docker logs tftp-test | grep "Starting tftpd"
+        docker logs tftp-test-${{ matrix.variant }} | grep "Starting"
         
     - name: Test TFTP functionality
       run: |
@@ -86,25 +99,25 @@ jobs:
         fi
         
         # Check TFTP logs for request
-        docker logs tftp-test | grep "RRQ from"
+        docker logs tftp-test-${{ matrix.variant }} | grep "RRQ from"
         
     - name: Test TFTP upload functionality
       run: |
         # Stop existing container
-        docker stop tftp-test || true
-        docker rm tftp-test || true
+        docker stop tftp-test-${{ matrix.variant }} || true
+        docker rm tftp-test-${{ matrix.variant }} || true
         
         # Set permissions for upload testing
         sudo chmod -R 777 /srv/docker/tftp
         
         # Start container with upload capability (--create flag)
         docker run -d \
-          --name tftp-test \
+          --name tftp-test-${{ matrix.variant }} \
           --network host \
           -e TZ=America/Denver \
           -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-hpa-alpine:test
+          ${{ matrix.image_name }}:test
           
         # Wait for startup
         sleep 3
@@ -137,14 +150,37 @@ jobs:
         fi
         
         # Check TFTP logs for upload request
-        docker logs tftp-test | grep "WRQ from"
+        docker logs tftp-test-${{ matrix.variant }} | grep "WRQ from"
+
+    - name: Test web server functionality (server-web only)
+      if: matrix.variant == 'server-web'
+      run: |
+        # Test HTTP access to files
+        echo "Testing web server..."
+        
+        # Create a test HTML file
+        echo "<h1>Test Page</h1><p>TFTP Boot Server</p>" | sudo tee /srv/docker/tftp/index.html
+        
+        # Test web access
+        sleep 2
+        curl -f http://localhost/ | grep "Test Page"
+        
+        # Test file download via HTTP
+        curl -f http://localhost/test -o /tmp/web-test
+        if diff /tmp/web-test /srv/docker/tftp/test; then
+          echo "✅ Web server file access works"
+        else
+          echo "❌ Web server file access failed"
+          exit 1
+        fi
         
     - name: Cleanup
       if: always()
       run: |
-        docker stop tftp-test || true
-        docker rm tftp-test || true
-        rm -f /tmp/test /tmp/upload-test.txt
+        docker stop tftp-test-${{ matrix.variant }} || true
+        docker rm tftp-test-${{ matrix.variant }} || true
+        rm -f /tmp/test /tmp/upload-test.txt /tmp/web-test
+        sudo rm -f /srv/docker/tftp/index.html
 
     - name: Login to Docker Hub
       if: startsWith(github.ref, 'refs/tags/v')
@@ -167,8 +203,8 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          kaczmar2/tftp-hpa-alpine
-          ghcr.io/${{ github.repository }}
+          ${{ matrix.image_name }}
+          ghcr.io/${{ github.repository_owner }}/${{ matrix.image_name }}
         tags: |
           type=semver,pattern={{version}}
 
@@ -176,7 +212,8 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
         platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: true
         tags: ${{ steps.meta.outputs.tags }}

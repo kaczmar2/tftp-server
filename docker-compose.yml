@@ -1,7 +1,8 @@
 services:
-  tftp:
+  # TFTP-only server
+  server:
     container_name: tftp-server
-    image: kaczmar2/tftp-hpa-alpine
+    image: kaczmar2/tftp-server:latest
     restart: unless-stopped
     network_mode: host
     environment:
@@ -10,3 +11,21 @@ services:
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - /etc/localtime:/etc/localtime:ro
+    profiles:
+      - server-only
+
+  # TFTP + nginx web server
+  server-web:
+    container_name: tftp-web-server
+    image: kaczmar2/tftp-server-web:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=${TZ:-UTC}
+      # - TFTP_ARGS=${TFTP_ARGS:-}  # Optional: Override default TFTP arguments (uncomment to customize)
+    volumes:
+      - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
+      - /etc/localtime:/etc/localtime:ro
+    profiles:
+      - server-web
+      - default
