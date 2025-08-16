@@ -3,7 +3,7 @@ FROM alpine:latest
 LABEL org.opencontainers.image.authors="Christian Kaczmarek" \
       org.opencontainers.image.description="TFTP server with nginx web server for boot scripts" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/kaczmar2/tftp-hpa-alpine"
+      org.opencontainers.image.source="https://github.com/kaczmar2/tftp-server"
 
 # Install TFTP server, nginx, and socat for logging
 RUN apk add --no-cache tftp-hpa nginx socat

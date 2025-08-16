@@ -3,7 +3,7 @@ FROM alpine:latest
 LABEL org.opencontainers.image.authors="Christian Kaczmarek" \
       org.opencontainers.image.description="Minimal TFTP server based on Alpine Linux and tftpd-hpa" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/kaczmar2/tftp-hpa-alpine"
+      org.opencontainers.image.source="https://github.com/kaczmar2/tftp-server"
 
 RUN apk add --no-cache tftp-hpa socat
 
