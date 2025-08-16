@@ -12,18 +12,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        variant: [server, server-web]
-        include:
-          - variant: server
-            dockerfile: ./server/Dockerfile
-            image_name: kaczmar2/tftp-server
-            context: ./server
-          - variant: server-web
-            dockerfile: ./server-web/Dockerfile
-            image_name: kaczmar2/tftp-server-web
-            context: ./server-web
     
     steps:
     - name: Checkout code
@@ -40,38 +28,40 @@ jobs:
     - name: Build Docker image (single platform for testing)
       uses: docker/build-push-action@v5
       with:
-        context: ${{ matrix.context }}
-        file: ${{ matrix.dockerfile }}
+        context: ./server
+        file: ./server/Dockerfile
         platforms: linux/amd64
         push: false
-        tags: ${{ matrix.image_name }}:test
+        tags: kaczmar2/tftp-server:test
         load: true
         
     - name: Set up TFTP test environment
       run: |
-        # Set up Docker bind mount
-        sudo mkdir -p /srv/docker/tftp
+        # Set up Docker bind mounts
+        sudo mkdir -p /srv/docker/tftp /srv/docker/www
         sudo chown -R $USER:$USER /srv/docker
-        sudo chmod -R 755 /srv/docker/tftp
+        sudo chmod -R 755 /srv/docker/tftp /srv/docker/www
         
-    - name: Test image can start
+    - name: Test TFTP-only mode
       run: |
-        # Start container
+        # Start container in TFTP-only mode
         docker run -d \
-          --name tftp-test-${{ matrix.variant }} \
+          --name tftp-test \
           --network host \
           -e TZ=America/Denver \
+          -e ENABLE_WEBSERVER=false \
           -v /srv/docker/tftp:/srv/tftp \
-          ${{ matrix.image_name }}:test
+          kaczmar2/tftp-server:test
           
         # Wait for startup
         sleep 3
         
         # Check if container is running
-        docker ps | grep tftp-test-${{ matrix.variant }}
+        docker ps | grep tftp-test
         
         # Check logs for startup message
-        docker logs tftp-test-${{ matrix.variant }} | grep "Starting"
+        docker logs tftp-test | grep "Starting TFTP server"
+        docker logs tftp-test | grep "TFTP only mode"
         
     - name: Test TFTP functionality
       run: |
@@ -99,25 +89,26 @@ jobs:
         fi
         
         # Check TFTP logs for request
-        docker logs tftp-test-${{ matrix.variant }} | grep "RRQ from"
+        docker logs tftp-test | grep "RRQ from"
         
     - name: Test TFTP upload functionality
       run: |
         # Stop existing container
-        docker stop tftp-test-${{ matrix.variant }} || true
-        docker rm tftp-test-${{ matrix.variant }} || true
+        docker stop tftp-test || true
+        docker rm tftp-test || true
         
         # Set permissions for upload testing
         sudo chmod -R 777 /srv/docker/tftp
         
         # Start container with upload capability (--create flag)
         docker run -d \
-          --name tftp-test-${{ matrix.variant }} \
+          --name tftp-test \
           --network host \
           -e TZ=America/Denver \
+          -e ENABLE_WEBSERVER=false \
           -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" \
           -v /srv/docker/tftp:/srv/tftp \
-          ${{ matrix.image_name }}:test
+          kaczmar2/tftp-server:test
           
         # Wait for startup
         sleep 3
@@ -150,24 +141,42 @@ jobs:
         fi
         
         # Check TFTP logs for upload request
-        docker logs tftp-test-${{ matrix.variant }} | grep "WRQ from"
+        docker logs tftp-test | grep "WRQ from"
 
-    - name: Test web server functionality (server-web only)
-      if: matrix.variant == 'server-web'
+    - name: Test web server functionality
       run: |
-        # Test HTTP access to files
-        echo "Testing web server..."
+        # Stop existing container
+        docker stop tftp-test || true
+        docker rm tftp-test || true
         
-        # Create a test HTML file
-        echo "<h1>Test Page</h1><p>TFTP Boot Server</p>" | sudo tee /srv/docker/tftp/index.html
+        # Start container with web server enabled
+        docker run -d \
+          --name tftp-test-web \
+          --network host \
+          -e TZ=America/Denver \
+          -e ENABLE_WEBSERVER=true \
+          -v /srv/docker/tftp:/srv/tftp \
+          -v /srv/docker/www:/var/www \
+          kaczmar2/tftp-server:test
+          
+        # Wait for startup
+        sleep 3
         
-        # Test web access
+        # Check logs for web server startup message
+        docker logs tftp-test-web | grep "Starting BusyBox httpd"
+        docker logs tftp-test-web | grep "Web server enabled"
+        
+        # Create test HTML and text files in web directory
+        echo "<h1>Test Page</h1><p>TFTP Boot Server</p>" | sudo tee /srv/docker/www/index.html
+        echo "Web server test content" | sudo tee /srv/docker/www/web-test.txt
+        
+        # Test web access to index
         sleep 2
         curl -f http://localhost/ | grep "Test Page"
         
         # Test file download via HTTP
-        curl -f http://localhost/test -o /tmp/web-test
-        if diff /tmp/web-test /srv/docker/tftp/test; then
+        curl -f http://localhost/web-test.txt -o /tmp/web-test
+        if diff /tmp/web-test /srv/docker/www/web-test.txt; then
           echo "✅ Web server file access works"
         else
           echo "❌ Web server file access failed"
@@ -177,10 +186,10 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        docker stop tftp-test-${{ matrix.variant }} || true
-        docker rm tftp-test-${{ matrix.variant }} || true
+        docker stop tftp-test tftp-test-web || true
+        docker rm tftp-test tftp-test-web || true
         rm -f /tmp/test /tmp/upload-test.txt /tmp/web-test
-        sudo rm -f /srv/docker/tftp/index.html
+        sudo rm -f /srv/docker/www/index.html /srv/docker/www/web-test.txt
 
     - name: Login to Docker Hub
       if: startsWith(github.ref, 'refs/tags/v')
@@ -203,8 +212,8 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          ${{ matrix.image_name }}
-          ghcr.io/${{ github.repository_owner }}/${{ matrix.image_name }}
+          kaczmar2/tftp-server
+          ghcr.io/${{ github.repository_owner }}/tftp-server
         tags: |
           type=semver,pattern={{version}}
 
@@ -212,8 +221,8 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: docker/build-push-action@v5
       with:
-        context: ${{ matrix.context }}
-        file: ${{ matrix.dockerfile }}
+        context: ./server
+        file: ./server/Dockerfile
         platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: true
         tags: ${{ steps.meta.outputs.tags }}
