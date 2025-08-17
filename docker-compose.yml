@@ -2,7 +2,7 @@ services:
   # TFTP-only server
   tftp-only:
     container_name: tftp-server
-    image: kaczmar2/tftp-server:latest
+    image: ghcr.io/kaczmar2/tftp-server
     restart: unless-stopped
     network_mode: host
     environment:
@@ -18,7 +18,7 @@ services:
   # TFTP + mini_httpd web server (default)
   tftp-web:
     container_name: tftp-server
-    image: kaczmar2/tftp-server:latest
+    image: ghcr.io/kaczmar2/tftp-server
     restart: unless-stopped
     network_mode: host
     environment:
