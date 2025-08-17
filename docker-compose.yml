@@ -15,7 +15,7 @@ services:
     profiles:
       - tftp-only
 
-  # TFTP + mini_httpd web server
+  # TFTP + mini_httpd web server (default)
   tftp-web:
     container_name: tftp-server
     image: kaczmar2/tftp-server:latest
@@ -29,6 +29,3 @@ services:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - ${WEB_ROOT:-/srv/docker/www}:/srv/www
       - /etc/localtime:/etc/localtime:ro
-    profiles:
-      - tftp-web
-      - default
