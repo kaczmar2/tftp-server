@@ -57,7 +57,6 @@ docker run -d \
   -e ENABLE_WEBSERVER=true \
   -v /srv/docker/tftp:/srv/tftp \
   -v /srv/docker/www:/srv/www \
-  -v /etc/localtime:/etc/localtime:ro \
   ghcr.io/kaczmar2/tftp-server
 
 # TFTP-only mode
@@ -68,7 +67,6 @@ docker run -d \
   -e TZ=America/Denver \
   -e ENABLE_WEBSERVER=false \
   -v /srv/docker/tftp:/srv/tftp \
-  -v /etc/localtime:/etc/localtime:ro \
   ghcr.io/kaczmar2/tftp-server
 ```
 
@@ -92,7 +90,7 @@ services:
   # TFTP-only server
   tftp-only:
     container_name: tftp-server
-    image: ghcr.io/kaczmar2/tftp-server:latest
+    image: ghcr.io/kaczmar2/tftp-server
     restart: unless-stopped
     network_mode: host
     environment:
@@ -100,14 +98,13 @@ services:
       - ENABLE_WEBSERVER=false
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
-      - /etc/localtime:/etc/localtime:ro
     profiles:
       - tftp-only
 
   # TFTP + mini_httpd web server
   tftp-web:
     container_name: tftp-server
-    image: ghcr.io/kaczmar2/tftp-server:latest
+    image: ghcr.io/kaczmar2/tftp-server
     restart: unless-stopped
     network_mode: host
     environment:
@@ -116,7 +113,6 @@ services:
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - ${WEB_ROOT:-/srv/docker/www}:/srv/www
-      - /etc/localtime:/etc/localtime:ro
     profiles:
       - tftp-web
       - default
