@@ -46,11 +46,12 @@ sleep 1
 
 # Conditionally start web server
 if [ "${ENABLE_WEBSERVER:-false}" = "true" ]; then
-    echo "Starting mini_httpd on port 80 serving /srv/www..."
+    WEB_PORT=${WEB_PORT:-80}
+    echo "Starting mini_httpd on port $WEB_PORT serving /srv/www..."
     # Run without daemonizing (-D prevents fork) and background with &
-    mini_httpd -p 80 -d /srv/www -u nobody -l /dev/stdout -D &
+    mini_httpd -p "$WEB_PORT" -d /srv/www -u nobody -l /dev/stdout -D &
     MINI_HTTPD_PID=$!
-    echo "Web server enabled - HTTP accessible on port 80 (PID: $MINI_HTTPD_PID)"
+    echo "Web server enabled - HTTP accessible on port $WEB_PORT (PID: $MINI_HTTPD_PID)"
 else
     echo "Web server disabled - TFTP only mode"
 fi
