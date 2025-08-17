@@ -141,9 +141,10 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./Dockerfile
         platforms: linux/amd64
         push: false
-        tags: kaczmar2/tftp-hpa-alpine:base-update-test
+        tags: kaczmar2/tftp-server:base-update-test
         load: true
         
     - name: Set up TFTP test environment
@@ -155,13 +156,14 @@ jobs:
         
     - name: Test image can start
       run: |
-        # Start container
+        # Start container in TFTP-only mode
         docker run -d \
           --name tftp-test \
           --network host \
           -e TZ=America/Denver \
+          -e ENABLE_WEBSERVER=false \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-hpa-alpine:base-update-test
+          kaczmar2/tftp-server:base-update-test
           
         # Wait for startup
         sleep 3
@@ -170,7 +172,7 @@ jobs:
         docker ps | grep tftp-test
         
         # Check logs for startup message
-        docker logs tftp-test | grep "Starting tftpd"
+        docker logs tftp-test | grep "Starting TFTP server with process supervisor"
         
     - name: Test TFTP functionality
       run: |
@@ -216,9 +218,10 @@ jobs:
           --name tftp-test \
           --network host \
           -e TZ=America/Denver \
+          -e ENABLE_WEBSERVER=false \
           -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-hpa-alpine:base-update-test
+          kaczmar2/tftp-server:base-update-test
           
         # Wait for startup
         sleep 3
@@ -278,8 +281,8 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          kaczmar2/tftp-hpa-alpine
-          ghcr.io/${{ github.repository }}
+          kaczmar2/tftp-server
+          ghcr.io/${{ github.repository_owner }}/tftp-server
         tags: |
           type=semver,pattern={{version}},value=${{ steps.version.outputs.tag }}
 
@@ -287,6 +290,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./Dockerfile
         platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: true
         tags: ${{ steps.meta.outputs.tags }}

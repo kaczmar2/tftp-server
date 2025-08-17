@@ -1,4 +1,4 @@
-name: Docker Build, Test and Publish Multi-Image
+name: Docker Build, Test and Publish
 
 on:
   push:
@@ -28,8 +28,8 @@ jobs:
     - name: Build Docker image (single platform for testing)
       uses: docker/build-push-action@v5
       with:
-        context: ./server
-        file: ./server/Dockerfile
+        context: .
+        file: ./Dockerfile
         platforms: linux/amd64
         push: false
         tags: kaczmar2/tftp-server:test
@@ -156,14 +156,14 @@ jobs:
           -e TZ=America/Denver \
           -e ENABLE_WEBSERVER=true \
           -v /srv/docker/tftp:/srv/tftp \
-          -v /srv/docker/www:/var/www \
+          -v /srv/docker/www:/srv/www \
           kaczmar2/tftp-server:test
           
         # Wait for startup
         sleep 3
         
         # Check logs for web server startup message
-        docker logs tftp-test-web | grep "Starting BusyBox httpd"
+        docker logs tftp-test-web | grep "Starting mini_httpd"
         docker logs tftp-test-web | grep "Web server enabled"
         
         # Create test HTML and text files in web directory
@@ -221,8 +221,8 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: docker/build-push-action@v5
       with:
-        context: ./server
-        file: ./server/Dockerfile
+        context: .
+        file: ./Dockerfile
         platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: true
         tags: ${{ steps.meta.outputs.tags }}

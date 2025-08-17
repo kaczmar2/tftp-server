@@ -2,14 +2,13 @@
 
 echo "Starting TFTP server with process supervisor..."
 
-# Global variables for process tracking
-SOCAT_PID=""
+# Global variables for critical process tracking
 MINI_HTTPD_PID=""
 TFTPD_PID=""
 
 # Function to handle graceful shutdown
 cleanup() {
-    echo "Received shutdown signal, stopping services..."
+    echo "Shutting down services..."
     
     # Stop web server if running
     if [ -n "$MINI_HTTPD_PID" ]; then
@@ -23,32 +22,24 @@ cleanup() {
         kill -TERM "$TFTPD_PID" 2>/dev/null
     fi
     
-    # Stop socat
-    if [ -n "$SOCAT_PID" ]; then
-        echo "Stopping socat (PID: $SOCAT_PID)..."
-        kill -TERM "$SOCAT_PID" 2>/dev/null
-    fi
-    
     # Wait a moment for graceful shutdown
     sleep 2
     
     # Force kill any remaining processes
     [ -n "$MINI_HTTPD_PID" ] && kill -KILL "$MINI_HTTPD_PID" 2>/dev/null
     [ -n "$TFTPD_PID" ] && kill -KILL "$TFTPD_PID" 2>/dev/null
-    [ -n "$SOCAT_PID" ] && kill -KILL "$SOCAT_PID" 2>/dev/null
     
-    echo "All services stopped"
+    echo "Services stopped"
     exit 0
 }
 
 # Set up signal handlers for graceful shutdown
 trap cleanup SIGTERM SIGINT
 
-# Start socat for syslog redirection to stdout
+# Start socat for syslog redirection (utility process - not monitored)
 echo "Starting socat for syslog redirection..."
 socat -u UNIX-RECV:/dev/log STDOUT &
-SOCAT_PID=$!
-echo "socat started (PID: $SOCAT_PID)"
+echo "socat started for logging"
 
 # Give socat a moment to initialize
 sleep 1
@@ -56,7 +47,8 @@ sleep 1
 # Conditionally start web server
 if [ "${ENABLE_WEBSERVER:-false}" = "true" ]; then
     echo "Starting mini_httpd on port 80 serving /srv/www..."
-    mini_httpd -p 80 -d /srv/www -u nobody -l /dev/stdout &
+    # Run without daemonizing (-D prevents fork) and background with &
+    mini_httpd -p 80 -d /srv/www -u nobody -l /dev/stdout -D &
     MINI_HTTPD_PID=$!
     echo "Web server enabled - HTTP accessible on port 80 (PID: $MINI_HTTPD_PID)"
 else
@@ -69,8 +61,23 @@ echo "Starting TFTP server: /usr/sbin/in.tftpd ${TFTP_ARGS} /srv/tftp"
 TFTPD_PID=$!
 echo "TFTP server started (PID: $TFTPD_PID)"
 
-echo "All services started, waiting for processes..."
+echo "Core services started, monitoring critical processes..."
 
-# Wait for any child process to exit
-# This keeps the script running as PID 1
-wait
+# Monitor only critical services (tftpd + mini_httpd if enabled)
+# If either core service dies, shutdown everything
+while true; do
+    # Check if TFTP server is still running
+    if ! kill -0 "$TFTPD_PID" 2>/dev/null; then
+        echo "TFTP server (PID: $TFTPD_PID) has exited, shutting down..."
+        cleanup
+    fi
+    
+    # Check web server if it was started
+    if [ -n "$MINI_HTTPD_PID" ] && ! kill -0 "$MINI_HTTPD_PID" 2>/dev/null; then
+        echo "Web server (PID: $MINI_HTTPD_PID) has exited, shutting down..."
+        cleanup
+    fi
+    
+    # Sleep briefly before next check
+    sleep 5
+done

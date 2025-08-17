@@ -1,6 +1,6 @@
 services:
   # TFTP-only server
-  server:
+  tftp-only:
     container_name: tftp-server
     image: kaczmar2/tftp-server:latest
     restart: unless-stopped
@@ -13,11 +13,11 @@ services:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - /etc/localtime:/etc/localtime:ro
     profiles:
-      - server-only
+      - tftp-only
 
-  # TFTP + BusyBox httpd web server
-  server-web:
-    container_name: tftp-web-server
+  # TFTP + mini_httpd web server
+  tftp-web:
+    container_name: tftp-server
     image: kaczmar2/tftp-server:latest
     restart: unless-stopped
     network_mode: host
@@ -27,8 +27,8 @@ services:
       # - TFTP_ARGS=${TFTP_ARGS:-}  # Optional: Override default TFTP arguments (uncomment to customize)
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
-      - ${WEB_ROOT:-/srv/docker/www}:/var/www
+      - ${WEB_ROOT:-/srv/docker/www}:/srv/www
       - /etc/localtime:/etc/localtime:ro
     profiles:
-      - server-web
+      - tftp-web
       - default
