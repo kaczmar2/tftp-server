@@ -30,4 +30,8 @@ WORKDIR /srv/tftp
 COPY start-server.sh /start-server.sh
 RUN chmod +x /start-server.sh
 
+# Health check to verify TFTP service is responding
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD nc -z -u -w2 127.0.0.1 69 || exit 1
+
 CMD ["/start-server.sh"]
