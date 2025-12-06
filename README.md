@@ -189,17 +189,18 @@ docker logs tftp-server | grep RRQ
 docker logs tftp-server | grep NAK
 
 # Check for HTTP requests (when web server enabled)
-# BusyBox httpd logs show client IP and path
-docker logs tftp-server | grep -E "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:"
+# BusyBox httpd logs show client IP, port, and response code
+docker logs tftp-server | grep "response:"
 ```
 
 **Log examples:**
 ```
-# TFTP requests
+# TFTP requests (detailed)
 <29>Jan 16 10:30:15 in.tftpd[25]: RRQ from 192.168.1.100 filename bootfile.txt
 
-# HTTP requests (BusyBox httpd verbose format)
-192.168.1.100:/boot.sh
+# HTTP requests (minimal format - IP, port, status only)
+[::ffff:10.10.10.144]:49118: response:200
+[::ffff:10.10.10.145]:46906: response:404
 
 # Service status
 Starting TFTP server with process supervisor...
@@ -207,7 +208,40 @@ Web server enabled - HTTP accessible on port 80 (PID: 16)
 TFTP server started (PID: 17)
 ```
 
-**Note:** BusyBox httpd provides minimal access logging showing the client IP and requested path. For detailed access logs with timestamps, methods, and status codes, consider using a dedicated web server.
+### HTTP Log Format
+
+BusyBox httpd provides minimal access logging with the following format:
+
+```
+[<client_ip>]:<client_port>: response:<status_code>
+```
+
+**Field Breakdown:**
+- **Client IP**: IPv6-mapped IPv4 address (e.g., `::ffff:10.10.10.144`) or IPv6 address
+- **Client Port**: Ephemeral port used by the client (e.g., `49118`)
+- **Status Code**: HTTP response code (e.g., `200`, `404`, `403`)
+
+**Common HTTP Status Codes:**
+- `200` - Success (file found and served)
+- `404` - Not Found (requested file doesn't exist)
+- `403` - Forbidden (permission denied)
+- `304` - Not Modified (cached response)
+- `500` - Internal Server Error
+
+**Limitations:**
+- ❌ No timestamps (use container logs or correlate with TFTP timestamps)
+- ❌ No request method (GET, POST, etc.)
+- ❌ No requested file path or URL
+- ❌ No bytes transferred or user agent
+- ✅ Minimal overhead and ultra-lightweight
+
+**Workaround for file tracking:** If you need to know which files are being accessed via HTTP, monitor file access times on the host:
+```bash
+# Check which files were recently accessed
+ls -ltu /srv/docker/www/
+```
+
+**Note:** For production environments requiring detailed access logs, consider using a dedicated web server like lighttpd or nginx instead of BusyBox httpd.
 
 ### File Management
 
