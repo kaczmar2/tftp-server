@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.authors="Christian Kaczmarek" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/kaczmar2/tftp-server"
 
-RUN apk add --no-cache tftp-hpa socat tzdata
+RUN apk add --no-cache tftp-hpa socat tzdata busybox-extras
 
 EXPOSE 69/udp 80/tcp
 
