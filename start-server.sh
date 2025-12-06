@@ -48,9 +48,11 @@ sleep 1
 if [ "${ENABLE_WEBSERVER:-false}" = "true" ]; then
     WEB_PORT=${WEB_PORT:-80}
     echo "Starting BusyBox httpd on port $WEB_PORT serving /srv/www..."
-    # Run in foreground mode (-f) and background with &
-    # -f: foreground mode, -p: port, -h: home directory, -u: user:group
-    httpd -f -p "$WEB_PORT" -h /srv/www -u nobody:nobody &
+    # Run in foreground mode (-f) with verbose logging (-v) and background with &
+    # -f: foreground mode, -v: verbose (logs requests to stderr)
+    # -p: port, -h: home directory, -u: user:group
+    # Redirect stderr to stdout so logs appear in docker logs
+    httpd -f -v -p "$WEB_PORT" -h /srv/www -u nobody:nobody 2>&1 &
     HTTPD_PID=$!
     echo "Web server enabled - HTTP accessible on port $WEB_PORT (PID: $HTTPD_PID)"
 else

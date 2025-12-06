@@ -189,7 +189,8 @@ docker logs tftp-server | grep RRQ
 docker logs tftp-server | grep NAK
 
 # Check for HTTP requests (when web server enabled)
-docker logs tftp-server | grep "GET\|POST"
+# BusyBox httpd logs show client IP and path
+docker logs tftp-server | grep -E "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:"
 ```
 
 **Log examples:**
@@ -197,14 +198,16 @@ docker logs tftp-server | grep "GET\|POST"
 # TFTP requests
 <29>Jan 16 10:30:15 in.tftpd[25]: RRQ from 192.168.1.100 filename bootfile.txt
 
-# HTTP requests (BusyBox httpd format)
-192.168.1.100 - - [16/Jan/2025:10:30:20 +0000] "GET /boot.sh HTTP/1.1" 200 45
+# HTTP requests (BusyBox httpd verbose format)
+192.168.1.100:/boot.sh
 
 # Service status
 Starting TFTP server with process supervisor...
 Web server enabled - HTTP accessible on port 80 (PID: 16)
 TFTP server started (PID: 17)
 ```
+
+**Note:** BusyBox httpd provides minimal access logging showing the client IP and requested path. For detailed access logs with timestamps, methods, and status codes, consider using a dedicated web server.
 
 ### File Management
 
