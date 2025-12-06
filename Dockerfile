@@ -5,7 +5,17 @@ LABEL org.opencontainers.image.authors="Christian Kaczmarek" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/kaczmar2/tftp-server"
 
-RUN apk add --no-cache tftp-hpa socat tzdata busybox-extras
+# Add Alpine 3.19 repository for BusyBox 1.36.1
+RUN echo "@v3.19 https://dl-cdn.alpinelinux.org/alpine/v3.19/main" >> /etc/apk/repositories
+
+# Install packages: use BusyBox from 3.19, everything else from 3.23
+# This avoids BusyBox 1.37.0-r29 QEMU emulation issues
+RUN apk add --no-cache \
+    busybox@v3.19 \
+    busybox-extras@v3.19 \
+    tftp-hpa \
+    socat \
+    tzdata
 
 EXPOSE 69/udp 80/tcp
 
