@@ -1,21 +1,14 @@
-FROM alpine:latest
+# Pin to Alpine 3.19 due to BusyBox 1.37.0-r29 QEMU emulation issues in Alpine 3.23+
+# Alpine 3.19 uses BusyBox 1.36.1 which works correctly with QEMU cross-platform builds
+# TODO: Upgrade to alpine:latest when BusyBox 1.37.0 QEMU compatibility is resolved
+FROM alpine:3.19
 
 LABEL org.opencontainers.image.authors="Christian Kaczmarek" \
       org.opencontainers.image.description="TFTP server with optional BusyBox httpd web server based on Alpine Linux" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/kaczmar2/tftp-server"
 
-# Add Alpine 3.19 repository for BusyBox 1.36.1
-RUN echo "@v3.19 https://dl-cdn.alpinelinux.org/alpine/v3.19/main" >> /etc/apk/repositories
-
-# Install packages: use BusyBox from 3.19, everything else from 3.23
-# This avoids BusyBox 1.37.0-r29 QEMU emulation issues
-RUN apk add --no-cache \
-    busybox@v3.19 \
-    busybox-extras@v3.19 \
-    tftp-hpa \
-    socat \
-    tzdata
+RUN apk add --no-cache tftp-hpa socat tzdata busybox-extras
 
 EXPOSE 69/udp 80/tcp
 
