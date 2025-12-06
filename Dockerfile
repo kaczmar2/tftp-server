@@ -1,11 +1,11 @@
 FROM alpine:latest
 
 LABEL org.opencontainers.image.authors="Christian Kaczmarek" \
-      org.opencontainers.image.description="TFTP server with optional mini_httpd web server based on Alpine Linux" \
+      org.opencontainers.image.description="TFTP server with optional BusyBox httpd web server based on Alpine Linux" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/kaczmar2/tftp-server"
 
-RUN apk add --no-cache tftp-hpa socat mini_httpd tzdata
+RUN apk add --no-cache tftp-hpa socat tzdata
 
 EXPOSE 69/udp 80/tcp
 

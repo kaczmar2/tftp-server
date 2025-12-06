@@ -3,7 +3,7 @@
 echo "Starting TFTP server with process supervisor..."
 
 # Global variables for critical process tracking
-MINI_HTTPD_PID=""
+HTTPD_PID=""
 TFTPD_PID=""
 
 # Function to handle graceful shutdown
@@ -11,9 +11,9 @@ cleanup() {
     echo "Shutting down services..."
     
     # Stop web server if running
-    if [ -n "$MINI_HTTPD_PID" ]; then
-        echo "Stopping mini_httpd (PID: $MINI_HTTPD_PID)..."
-        kill -TERM "$MINI_HTTPD_PID" 2>/dev/null
+    if [ -n "$HTTPD_PID" ]; then
+        echo "Stopping httpd (PID: $HTTPD_PID)..."
+        kill -TERM "$HTTPD_PID" 2>/dev/null
     fi
     
     # Stop TFTP server
@@ -26,7 +26,7 @@ cleanup() {
     sleep 2
     
     # Force kill any remaining processes
-    [ -n "$MINI_HTTPD_PID" ] && kill -KILL "$MINI_HTTPD_PID" 2>/dev/null
+    [ -n "$HTTPD_PID" ] && kill -KILL "$HTTPD_PID" 2>/dev/null
     [ -n "$TFTPD_PID" ] && kill -KILL "$TFTPD_PID" 2>/dev/null
     
     echo "Services stopped"
@@ -47,11 +47,12 @@ sleep 1
 # Conditionally start web server
 if [ "${ENABLE_WEBSERVER:-false}" = "true" ]; then
     WEB_PORT=${WEB_PORT:-80}
-    echo "Starting mini_httpd on port $WEB_PORT serving /srv/www..."
-    # Run without daemonizing (-D prevents fork) and background with &
-    mini_httpd -p "$WEB_PORT" -d /srv/www -u nobody -l /dev/stdout -D &
-    MINI_HTTPD_PID=$!
-    echo "Web server enabled - HTTP accessible on port $WEB_PORT (PID: $MINI_HTTPD_PID)"
+    echo "Starting BusyBox httpd on port $WEB_PORT serving /srv/www..."
+    # Run in foreground mode (-f) and background with &
+    # -f: foreground mode, -p: port, -h: home directory, -u: user:group
+    httpd -f -p "$WEB_PORT" -h /srv/www -u nobody:nobody &
+    HTTPD_PID=$!
+    echo "Web server enabled - HTTP accessible on port $WEB_PORT (PID: $HTTPD_PID)"
 else
     echo "Web server disabled - TFTP only mode"
 fi
@@ -74,8 +75,8 @@ while true; do
     fi
     
     # Check web server if it was started
-    if [ -n "$MINI_HTTPD_PID" ] && ! kill -0 "$MINI_HTTPD_PID" 2>/dev/null; then
-        echo "Web server (PID: $MINI_HTTPD_PID) has exited, shutting down..."
+    if [ -n "$HTTPD_PID" ] && ! kill -0 "$HTTPD_PID" 2>/dev/null; then
+        echo "Web server (PID: $HTTPD_PID) has exited, shutting down..."
         cleanup
     fi
     

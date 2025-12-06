@@ -2,7 +2,7 @@
 
 [![Docker Build, Test and Publish](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml) [![Base Image Update Check](https://github.com/kaczmar2/tftp-server/actions/workflows/base-image-update.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/base-image-update.yml)
 
-A minimal, secure TFTP server with optional web server based on Alpine Linux, `tftpd-hpa`, and `mini_httpd`.
+A minimal, secure TFTP server with optional web server based on Alpine Linux, `tftpd-hpa`, and BusyBox `httpd`.
 
 **Also available on Docker Hub**: [https://hub.docker.com/r/kaczmar2/tftp-server](https://hub.docker.com/r/kaczmar2/tftp-server)
 
@@ -101,7 +101,7 @@ services:
     profiles:
       - tftp-only
 
-  # TFTP + mini_httpd web server
+  # TFTP + BusyBox httpd web server
   tftp-web:
     container_name: tftp-server
     image: ghcr.io/kaczmar2/tftp-server
@@ -197,7 +197,7 @@ docker logs tftp-server | grep "GET\|POST"
 # TFTP requests
 <29>Jan 16 10:30:15 in.tftpd[25]: RRQ from 192.168.1.100 filename bootfile.txt
 
-# HTTP requests (mini_httpd format)
+# HTTP requests (BusyBox httpd format)
 192.168.1.100 - - [16/Jan/2025:10:30:20 +0000] "GET /boot.sh HTTP/1.1" 200 45
 
 # Service status

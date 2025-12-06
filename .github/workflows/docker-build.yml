@@ -163,7 +163,7 @@ jobs:
         sleep 3
         
         # Check logs for web server startup message
-        docker logs tftp-test-web | grep "Starting mini_httpd"
+        docker logs tftp-test-web | grep "Starting BusyBox httpd"
         docker logs tftp-test-web | grep "Web server enabled"
         
         # Create test HTML and text files in web directory
@@ -227,4 +227,4 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        outputs: type=image,annotation-index.org.opencontainers.image.description=TFTP server with optional mini_httpd web server based on Alpine Linux
+        outputs: type=image,annotation-index.org.opencontainers.image.description=TFTP server with optional BusyBox httpd web server based on Alpine Linux
