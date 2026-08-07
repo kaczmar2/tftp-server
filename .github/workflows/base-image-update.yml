@@ -60,27 +60,14 @@ jobs:
         echo "Current digest: $CURRENT_DIGEST"
         echo "Last digest: $LAST_DIGEST"
         
+        # The stored digest is NOT updated here. It is recorded at the end of
+        # the deploy job, so it only ever marks a base image that was actually
+        # built and published. Updating it here would mark a failed build as
+        # done, and the retry would never happen.
         if [ "$CURRENT_DIGEST" != "$LAST_DIGEST" ] && [ "$CURRENT_DIGEST" != "" ]; then
           echo "Base image has been updated!"
           echo "should-rebuild=true" >> $GITHUB_OUTPUT
           echo "digest=$CURRENT_DIGEST" >> $GITHUB_OUTPUT
-          
-          # Save digest to GitHub variable using REST API
-          echo "Updating GitHub variable..."
-          
-          UPDATE_RESPONSE=$(curl -sL -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "$API_URL" \
-            -d "{\"name\":\"LAST_BASE_DIGEST\",\"value\":\"$CURRENT_DIGEST\"}")
-          
-          if [ -z "$UPDATE_RESPONSE" ]; then
-            echo "✅ Successfully updated variable"
-          else
-            echo "❌ Failed to update variable:"
-            echo "$UPDATE_RESPONSE"
-          fi
         else
           echo "Base image has not changed"
           echo "should-rebuild=false" >> $GITHUB_OUTPUT
@@ -309,4 +296,29 @@ jobs:
         git config --local user.name "GitHub Action"
         git tag -a "${{ steps.version.outputs.tag }}" -m "Automatic base image update: ${{ needs.check-base-image.outputs.digest }}"
         git push origin "${{ steps.version.outputs.tag }}"
+
+    # This runs last, on purpose. The stored digest means "this base image was
+    # built and published successfully". If any step above fails, the digest is
+    # not recorded, so the next scheduled run retries instead of skipping.
+    - name: Record the published base image digest
+      env:
+        GH_TOKEN: ${{ secrets.GH_ACTIONS_PAT }}
+        DIGEST: ${{ needs.check-base-image.outputs.digest }}
+      run: |
+        API_URL="https://api.github.com/repos/${{ github.repository }}/actions/variables/LAST_BASE_DIGEST"
+
+        UPDATE_RESPONSE=$(curl -sL -X PATCH \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $GH_TOKEN" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "$API_URL" \
+          -d "{\"name\":\"LAST_BASE_DIGEST\",\"value\":\"$DIGEST\"}")
+
+        if [ -z "$UPDATE_RESPONSE" ]; then
+          echo "✅ Recorded base image digest: $DIGEST"
+        else
+          echo "❌ Failed to record digest:"
+          echo "$UPDATE_RESPONSE"
+          exit 1
+        fi
         
