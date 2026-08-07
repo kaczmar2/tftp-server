@@ -15,9 +15,9 @@
       "enabled": false
     },
     {
-      "description": "Base image digest updates are safe to merge on their own. Merging one changes the Dockerfile, which triggers the release workflow.",
+      "description": "Base image digest updates are safe to merge on their own. Merging one changes the Dockerfile, which triggers the release workflow. Both update types are needed: pinDigest is the one-time conversion of a tag to a digest, and digest is every bump after that. Note that pin is a different thing entirely, for version ranges, and does not apply to Docker.",
       "matchManagers": ["dockerfile"],
-      "matchUpdateTypes": ["digest", "pin"],
+      "matchUpdateTypes": ["pinDigest", "digest"],
       "automerge": true
     },
     {
