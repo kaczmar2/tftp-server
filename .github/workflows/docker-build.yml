@@ -1,28 +1,100 @@
 name: Docker Build, Test and Publish
 
-# CI for every branch except main, plus the publish path for v* tags.
+# Builds and tests every push. Publishes in exactly two cases, decided by the
+# "Decide whether to publish" step below:
 #
-# main is excluded on purpose. A push to main is either a Dockerfile change,
-# which release-on-dockerfile-change.yml handles end to end, or something else
-# that already passed CI as a pull request. Without this exclusion both
-# workflows would build the same commit at the same time.
+#   1. You push a v* tag. The published version is the tag you chose, so major
+#      and minor releases stay under your control.
+#   2. Renovate merges a base image digest bump into main. The patch segment is
+#      incremented and the release happens unattended.
+#
+# Everything else builds and tests only. In particular, your own pushes to main
+# never publish, even when they touch the Dockerfile, so a code change plus a
+# tag of your choosing produces one release rather than two.
+#
+# Build, publish, and tag are one job on purpose. A tag pushed with GITHUB_TOKEN
+# does not start another workflow, so publishing cannot wait for the tag event.
+# Sharing a job also keeps the buildx cache warm, so the image published is the
+# one just tested.
 on:
   push:
-    branches-ignore: [ main ]
+    branches: [ "*" ]
     tags:
       - v*
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
-      
+      with:
+        # Full history and tags: the version calculation needs the most recent
+        # release tag, and the Dockerfile check compares against the previous
+        # commit.
+        fetch-depth: 0
+
+    - name: Decide whether to publish
+      id: decide
+      env:
+        REF: ${{ github.ref }}
+        EVENT: ${{ github.event_name }}
+        AUTHOR: ${{ github.event.head_commit.author.username }}
+      run: |
+        PUBLISH=false
+        CREATE_TAG=false
+        VERSION=""
+
+        if [ "$EVENT" = "push" ] && [ "${REF#refs/tags/v}" != "$REF" ]; then
+          # You pushed a version tag. Publish exactly what you named.
+          VERSION="${REF#refs/tags/v}"
+          PUBLISH=true
+          echo "Tag push by you. Publishing version $VERSION, tag already exists."
+
+        elif [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ] && [ "$AUTHOR" = "renovate[bot]" ]; then
+          # Renovate merged something. Only a base image change is a release:
+          # it also automerges GitHub Actions updates, which must not publish.
+          if git diff --name-only HEAD~1 HEAD | grep -qx 'Dockerfile'; then
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+            NUM="${LATEST_TAG#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$NUM"
+            VERSION="${MAJOR:-1}.${MINOR:-0}.$(( ${PATCH:-0} + 1 ))"
+            PUBLISH=true
+            CREATE_TAG=true
+            echo "Renovate changed the Dockerfile. $LATEST_TAG -> v$VERSION, tag will be created."
+          else
+            echo "Renovate commit, but the Dockerfile is unchanged. Build and test only."
+          fi
+
+        else
+          echo "Not a release trigger. Build and test only."
+        fi
+
+        echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+        echo "create_tag=$CREATE_TAG" >> "$GITHUB_OUTPUT"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+        {
+          echo "### Release decision"
+          echo ""
+          echo "| | |"
+          echo "|---|---|"
+          echo "| event | \`$EVENT\` |"
+          echo "| ref | \`$REF\` |"
+          echo "| commit author | \`${AUTHOR:-n/a}\` |"
+          echo "| publish | \`$PUBLISH\` |"
+          echo "| version | \`${VERSION:-n/a}\` |"
+          echo "| create tag | \`$CREATE_TAG\` |"
+        } >> "$GITHUB_STEP_SUMMARY"
+
     # GitHub runners no longer ship QEMU, so the arm64 and arm/v7 builds
     # fail without this. The emulator version is intentionally not pinned:
     # the "Build all published platforms" step below catches a bad emulator
@@ -217,14 +289,14 @@ jobs:
         sudo rm -f /srv/docker/www/index.html /srv/docker/www/web-test.txt
 
     - name: Login to Docker Hub
-      if: startsWith(github.ref, 'refs/tags/v')
+      if: steps.decide.outputs.publish == 'true'
       uses: docker/login-action@v4
       with:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Login to GitHub Container Registry
-      if: startsWith(github.ref, 'refs/tags/v')
+      if: steps.decide.outputs.publish == 'true'
       uses: docker/login-action@v4
       with:
         registry: ghcr.io
@@ -232,7 +304,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Extract metadata
-      if: startsWith(github.ref, 'refs/tags/v')
+      if: steps.decide.outputs.publish == 'true'
       id: meta
       uses: docker/metadata-action@v6
       with:
@@ -240,10 +312,10 @@ jobs:
           ${{ github.repository_owner }}/tftp-server
           ghcr.io/${{ github.repository_owner }}/tftp-server
         tags: |
-          type=semver,pattern={{version}}
+          type=semver,pattern={{version}},value=v${{ steps.decide.outputs.version }}
 
     - name: Build and push to registries
-      if: startsWith(github.ref, 'refs/tags/v')
+      if: steps.decide.outputs.publish == 'true'
       uses: docker/build-push-action@v7
       with:
         context: .
@@ -252,3 +324,16 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+    # Only when the version was computed here. A tag you pushed already exists.
+    # This runs after the push, so the images are live before the tag appears.
+    - name: Create Git Tag
+      if: steps.decide.outputs.create_tag == 'true'
+      env:
+        TAG: v${{ steps.decide.outputs.version }}
+        COMMIT: ${{ github.sha }}
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a "$TAG" -m "Automated release $TAG from base image update in $COMMIT"
+        git push origin "$TAG"
