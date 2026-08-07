@@ -57,7 +57,7 @@ jobs:
         file: ./Dockerfile
         platforms: linux/amd64
         push: false
-        tags: kaczmar2/tftp-server:test
+        tags: tftp-server:test
         load: true
         
     - name: Set up TFTP test environment
@@ -76,7 +76,7 @@ jobs:
           -e TZ=America/Denver \
           -e ENABLE_WEBSERVER=false \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-server:test
+          tftp-server:test
           
         # Wait for startup
         sleep 3
@@ -133,7 +133,7 @@ jobs:
           -e ENABLE_WEBSERVER=false \
           -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-server:test
+          tftp-server:test
           
         # Wait for startup
         sleep 3
@@ -182,7 +182,7 @@ jobs:
           -e ENABLE_WEBSERVER=true \
           -v /srv/docker/tftp:/srv/tftp \
           -v /srv/docker/www:/srv/www \
-          kaczmar2/tftp-server:test
+          tftp-server:test
           
         # Wait for startup
         sleep 3
@@ -220,7 +220,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: docker/login-action@v4
       with:
-        username: kaczmar2
+        username: ${{ github.repository_owner }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Login to GitHub Container Registry
@@ -237,7 +237,7 @@ jobs:
       uses: docker/metadata-action@v6
       with:
         images: |
-          kaczmar2/tftp-server
+          ${{ github.repository_owner }}/tftp-server
           ghcr.io/${{ github.repository_owner }}/tftp-server
         tags: |
           type=semver,pattern={{version}}
@@ -252,4 +252,3 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        outputs: type=image,annotation-index.org.opencontainers.image.description=TFTP server with optional BusyBox httpd web server based on Alpine Linux
