@@ -315,6 +315,7 @@ jobs:
           type=semver,pattern={{version}},value=v${{ steps.decide.outputs.version }}
 
     - name: Build and push to registries
+      id: push
       if: steps.decide.outputs.publish == 'true'
       uses: docker/build-push-action@v7
       with:
@@ -324,6 +325,31 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+    # Reports what actually reached the registries, read back from the pushed
+    # manifest rather than restated from config. Never fails the run: a release
+    # that worked should not go red because a reporting call hiccuped.
+    - name: Summarise the release
+      if: steps.decide.outputs.publish == 'true'
+      env:
+        VERSION: ${{ steps.decide.outputs.version }}
+        DIGEST: ${{ steps.push.outputs.digest }}
+        OWNER: ${{ github.repository_owner }}
+      run: |
+        IMAGE="ghcr.io/$OWNER/tftp-server:$VERSION"
+        PLATFORMS=$(docker buildx imagetools inspect "$IMAGE" 2>/dev/null \
+          | awk '/^  Platform:/ {print $2}' | grep -v unknown | paste -sd', ' || true)
+        {
+          echo "### Published"
+          echo ""
+          echo "| | |"
+          echo "|---|---|"
+          echo "| version | \`$VERSION\` |"
+          echo "| digest | \`$DIGEST\` |"
+          echo "| platforms | ${PLATFORMS:-could not read manifest} |"
+          echo "| Docker Hub | \`$OWNER/tftp-server:$VERSION\` |"
+          echo "| GHCR | \`$IMAGE\` |"
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # Only when the version was computed here. A tag you pushed already exists.
     # This runs after the push, so the images are live before the tag appears.
