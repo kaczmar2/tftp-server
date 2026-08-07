@@ -7,7 +7,11 @@ HTTPD_PID=""
 TFTPD_PID=""
 
 # Function to handle graceful shutdown
+# Argument 1 is the exit code. Use 0 for a requested stop and 1 when a
+# monitored service died, so Docker can tell a crash from a clean stop.
 cleanup() {
+    EXIT_CODE=${1:-0}
+
     echo "Shutting down services..."
     
     # Stop web server if running
@@ -29,12 +33,13 @@ cleanup() {
     [ -n "$HTTPD_PID" ] && kill -KILL "$HTTPD_PID" 2>/dev/null
     [ -n "$TFTPD_PID" ] && kill -KILL "$TFTPD_PID" 2>/dev/null
     
-    echo "Services stopped"
-    exit 0
+    echo "Services stopped (exit code: $EXIT_CODE)"
+    exit "$EXIT_CODE"
 }
 
 # Set up signal handlers for graceful shutdown
-trap cleanup SIGTERM SIGINT
+# A stop that was asked for is a clean exit
+trap 'cleanup 0' SIGTERM SIGINT
 
 # Start socat for syslog redirection (utility process - not monitored)
 echo "Starting socat for syslog redirection..."
@@ -73,13 +78,13 @@ while true; do
     # Check if TFTP server is still running
     if ! kill -0 "$TFTPD_PID" 2>/dev/null; then
         echo "TFTP server (PID: $TFTPD_PID) has exited, shutting down..."
-        cleanup
+        cleanup 1
     fi
     
     # Check web server if it was started
     if [ -n "$HTTPD_PID" ] && ! kill -0 "$HTTPD_PID" 2>/dev/null; then
         echo "Web server (PID: $HTTPD_PID) has exited, shutting down..."
-        cleanup
+        cleanup 1
     fi
     
     # Sleep briefly before next check
