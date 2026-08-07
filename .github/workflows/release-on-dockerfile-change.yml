@@ -1,91 +1,38 @@
-name: Base Image Update Check
+name: Release on Dockerfile Change
+
+# Renovate watches the base image digest pinned in the Dockerfile. When it
+# merges an update into main, the Dockerfile changes and this workflow builds,
+# tests, publishes, and tags a new patch release. Renovate replaced the old
+# daily cron job that compared digests by hand.
+#
+# Build, publish, and tag are deliberately in ONE job. The tag is pushed with
+# GITHUB_TOKEN, and GitHub does not start workflows from events created by that
+# token. A tag pushed here therefore never triggers docker-build.yml, so
+# publishing must not depend on the tag event.
 
 on:
-  schedule:
-    # Check daily at 6 AM UTC
-    - cron: '0 6 * * *'
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
   workflow_dispatch:
-    # Allow manual triggering
-    inputs:
-      dry_run:
-        description: 'Dry run mode (check only, no build/deploy)'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
-  actions: write
   packages: write
 
 jobs:
-  check-base-image:
+  build-publish-tag:
     runs-on: ubuntu-latest
-    outputs:
-      should-rebuild: ${{ steps.check.outputs.should-rebuild }}
-      digest: ${{ steps.check.outputs.digest }}
-      
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v7
-      
-    - name: Check for base image updates
-      id: check
-      env:
-        GH_TOKEN: ${{ secrets.GH_ACTIONS_PAT }}
-      run: |
-        # Get the digest using docker pull (multi-platform images require this approach)
-        CURRENT_DIGEST=$(docker pull alpine:latest 2>&1 | grep "Digest:" | sed 's/.*Digest: //' || echo "")
-        
-        # Get the digest from GitHub repository variable using REST API
-        echo "Fetching last digest from GitHub..."
-        API_URL="https://api.github.com/repos/${{ github.repository }}/actions/variables/LAST_BASE_DIGEST"
-        
-        API_RESPONSE=$(curl -sL \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer $GH_TOKEN" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "$API_URL")
-        
-        # Check if API call was successful
-        if echo "$API_RESPONSE" | jq -e '.value' >/dev/null 2>&1; then
-          echo "✅ Successfully retrieved variable"
-        else
-          echo "❌ Failed to retrieve variable:"
-          echo "$API_RESPONSE"
-        fi
-        
-        LAST_DIGEST=$(echo "$API_RESPONSE" | jq -r '.value // ""' 2>/dev/null || echo "")
-        
-        echo "Current digest: $CURRENT_DIGEST"
-        echo "Last digest: $LAST_DIGEST"
-        
-        # The stored digest is NOT updated here. It is recorded at the end of
-        # the deploy job, so it only ever marks a base image that was actually
-        # built and published. Updating it here would mark a failed build as
-        # done, and the retry would never happen.
-        if [ "$CURRENT_DIGEST" != "$LAST_DIGEST" ] && [ "$CURRENT_DIGEST" != "" ]; then
-          echo "Base image has been updated!"
-          echo "should-rebuild=true" >> $GITHUB_OUTPUT
-          echo "digest=$CURRENT_DIGEST" >> $GITHUB_OUTPUT
-        else
-          echo "Base image has not changed"
-          echo "should-rebuild=false" >> $GITHUB_OUTPUT
-        fi
 
-  build-test-deploy:
-    needs: check-base-image
-    if: needs.check-base-image.outputs.should-rebuild == 'true' && inputs.dry_run != true
-    runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
       with:
-        # Get the latest commit with the updated digest
-        ref: main
-        fetch-depth: 0  # Fetch all history for proper version calculation
-        
+        # Full history and tags, so the version calculation below can find the
+        # most recent release tag.
+        fetch-depth: 0
+
     - name: Calculate next version
       id: version
       run: |
@@ -137,7 +84,7 @@ jobs:
         file: ./Dockerfile
         platforms: linux/amd64
         push: false
-        tags: kaczmar2/tftp-server:base-update-test
+        tags: kaczmar2/tftp-server:release-test
         load: true
         
     - name: Set up TFTP test environment
@@ -156,7 +103,7 @@ jobs:
           -e TZ=America/Denver \
           -e ENABLE_WEBSERVER=false \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-server:base-update-test
+          kaczmar2/tftp-server:release-test
           
         # Wait for startup
         sleep 3
@@ -214,7 +161,7 @@ jobs:
           -e ENABLE_WEBSERVER=false \
           -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" \
           -v /srv/docker/tftp:/srv/tftp \
-          kaczmar2/tftp-server:base-update-test
+          kaczmar2/tftp-server:release-test
           
         # Wait for startup
         sleep 3
@@ -259,7 +206,7 @@ jobs:
     - name: Login to Docker Hub
       uses: docker/login-action@v4
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        username: kaczmar2
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Login to GitHub Container Registry
@@ -290,35 +237,15 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,annotation-index.org.opencontainers.image.description=TFTP server with optional BusyBox httpd web server based on Alpine Linux
         
+    # This runs last. The images are already published by the step above, so the
+    # tag is a marker, not the trigger. Nothing downstream depends on it.
     - name: Create Git Tag
+      env:
+        TAG: ${{ steps.version.outputs.tag }}
+        COMMIT: ${{ github.sha }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git tag -a "${{ steps.version.outputs.tag }}" -m "Automatic base image update: ${{ needs.check-base-image.outputs.digest }}"
-        git push origin "${{ steps.version.outputs.tag }}"
+        git tag -a "$TAG" -m "Automated release $TAG from Dockerfile change in $COMMIT"
+        git push origin "$TAG"
 
-    # This runs last, on purpose. The stored digest means "this base image was
-    # built and published successfully". If any step above fails, the digest is
-    # not recorded, so the next scheduled run retries instead of skipping.
-    - name: Record the published base image digest
-      env:
-        GH_TOKEN: ${{ secrets.GH_ACTIONS_PAT }}
-        DIGEST: ${{ needs.check-base-image.outputs.digest }}
-      run: |
-        API_URL="https://api.github.com/repos/${{ github.repository }}/actions/variables/LAST_BASE_DIGEST"
-
-        UPDATE_RESPONSE=$(curl -sL -X PATCH \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer $GH_TOKEN" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "$API_URL" \
-          -d "{\"name\":\"LAST_BASE_DIGEST\",\"value\":\"$DIGEST\"}")
-
-        if [ -z "$UPDATE_RESPONSE" ]; then
-          echo "✅ Recorded base image digest: $DIGEST"
-        else
-          echo "❌ Failed to record digest:"
-          echo "$UPDATE_RESPONSE"
-          exit 1
-        fi
-        
