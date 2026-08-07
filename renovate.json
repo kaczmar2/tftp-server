@@ -5,6 +5,7 @@
     "docker:pinDigests"
   ],
   "platformAutomerge": false,
+  "automergeStrategy": "squash",
   "packageRules": [
     {
       "description": "Never update this repository's own published image. It appears in docker-compose.yml, which is the example users copy from the README, so it must keep tracking the latest tag rather than a frozen digest. It would also churn: every release produces a new digest and therefore a new pull request.",
