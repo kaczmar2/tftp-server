@@ -14,7 +14,7 @@ services:
     profiles:
       - tftp-only
 
-  # TFTP + mini_httpd web server (default)
+  # TFTP + BusyBox httpd web server (default)
   tftp-web:
     container_name: tftp-server
     image: ghcr.io/kaczmar2/tftp-server

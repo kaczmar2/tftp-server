@@ -295,7 +295,7 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        outputs: type=image,annotation-index.org.opencontainers.image.description=TFTP server with optional mini_httpd web server based on Alpine Linux
+        outputs: type=image,annotation-index.org.opencontainers.image.description=TFTP server with optional BusyBox httpd web server based on Alpine Linux
         
     - name: Create Git Tag
       run: |

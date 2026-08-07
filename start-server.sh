@@ -67,7 +67,7 @@ echo "TFTP server started (PID: $TFTPD_PID)"
 
 echo "Core services started, monitoring critical processes..."
 
-# Monitor only critical services (tftpd + mini_httpd if enabled)
+# Monitor only critical services (tftpd + httpd if enabled)
 # If either core service dies, shutdown everything
 while true; do
     # Check if TFTP server is still running

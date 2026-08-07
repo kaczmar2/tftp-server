@@ -75,8 +75,13 @@ docker run -d \
 ### Environment Variables
 
 - **`ENABLE_WEBSERVER`**: Set to `true` to enable HTTP server, `false` for TFTP-only (default: `false`)
+- **`WEB_PORT`**: TCP port for the HTTP server (default: `80`). Only used when `ENABLE_WEBSERVER=true`.
 - **`TZ`**: Timezone for logs and timestamps (default: `UTC`)
 - **`TFTP_ARGS`**: Custom TFTP daemon arguments (see Custom TFTP Options section)
+
+**Note:** The container uses host networking, so `WEB_PORT` is the port on the host. The
+supplied `.env.example` sets `WEB_PORT=8080` to avoid a conflict with an existing web server
+on port 80. Change it to `80` if port 80 is free. The examples in this README assume port 80.
 
 ### Docker Compose Profiles
 
@@ -101,7 +106,7 @@ services:
     profiles:
       - tftp-only
 
-  # TFTP + BusyBox httpd web server
+  # TFTP + BusyBox httpd web server (default)
   tftp-web:
     container_name: tftp-server
     image: ghcr.io/kaczmar2/tftp-server
@@ -110,13 +115,14 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - ENABLE_WEBSERVER=true
+      - WEB_PORT=${WEB_PORT:-80}
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - ${WEB_ROOT:-/srv/docker/www}:/srv/www
-    profiles:
-      - tftp-web
-      - default
 ```
+
+The `tftp-web` service has no `profiles` key, so `docker compose up` starts it. The
+`tftp-only` service starts only when you ask for its profile.
 
 ## Directory Structure
 
@@ -276,7 +282,7 @@ This container **requires** `network_mode: host` because:
 - UDP port 69 must be accessible
 
 **Web server (when ENABLE_WEBSERVER=true):**
-- TCP port 80 must be accessible
+- The TCP port set by `WEB_PORT` must be accessible (default: `80`)
 
 ## Custom TFTP Options
 
