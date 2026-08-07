@@ -1,6 +1,6 @@
 # TFTP Server Docker Image
 
-[![Docker Build, Test and Publish](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml) [![Base Image Update Check](https://github.com/kaczmar2/tftp-server/actions/workflows/base-image-update.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/base-image-update.yml)
+[![Docker Build, Test and Publish](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/docker-build.yml) [![Release on Dockerfile Change](https://github.com/kaczmar2/tftp-server/actions/workflows/release-on-dockerfile-change.yml/badge.svg)](https://github.com/kaczmar2/tftp-server/actions/workflows/release-on-dockerfile-change.yml)
 
 A minimal, secure TFTP server with optional web server based on Alpine Linux, `tftpd-hpa`, and BusyBox `httpd`.
 
