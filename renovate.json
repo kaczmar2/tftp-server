@@ -8,7 +8,7 @@
   "automergeStrategy": "squash",
   "packageRules": [
     {
-      "description": "Never update this repository's own published image. It appears in docker-compose.yml, which is the example users copy from the README, so it must keep tracking the latest tag rather than a frozen digest. It would also churn: every release produces a new digest and therefore a new pull request.",
+      "description": "Never update this repo's own image. docker-compose.yml must keep tracking the latest tag.",
       "matchPackageNames": [
         "ghcr.io/kaczmar2/tftp-server",
         "kaczmar2/tftp-server"
@@ -16,19 +16,19 @@
       "enabled": false
     },
     {
-      "description": "Base image digest updates are safe to merge on their own. Merging one changes the Dockerfile, which triggers the release workflow. Both update types are needed: pinDigest is the one-time conversion of a tag to a digest, and digest is every bump after that. Note that pin is a different thing entirely, for version ranges, and does not apply to Docker.",
+      "description": "Automerge base image updates. pinDigest is the first pin, digest is every bump after.",
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pinDigest", "digest"],
       "automerge": true
     },
     {
-      "description": "Minor and patch updates to GitHub Actions are routine.",
+      "description": "Automerge minor and patch updates to GitHub Actions.",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     },
     {
-      "description": "Major updates always wait for a human. Action major versions have broken this repo before.",
+      "description": "Major updates need review.",
       "matchUpdateTypes": ["major"],
       "automerge": false
     }
