@@ -33,14 +33,6 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install -y -qq tftp-hpa
       
-    - name: TEMP verify multi-arch build works
-      uses: docker/build-push-action@v7
-      with:
-        context: .
-        file: ./Dockerfile
-        platforms: linux/amd64,linux/arm64,linux/arm/v7
-        push: false
-
     - name: Build Docker image (single platform for testing)
       uses: docker/build-push-action@v7
       with:
