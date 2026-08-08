@@ -306,10 +306,16 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # DOCKER_METADATA_ANNOTATIONS_LEVELS is needed because metadata-action
+    # annotates the per-platform manifests only by default. The GHCR package
+    # page reads the index, so without "index" the published image carries no
+    # index annotations at all.
     - name: Extract metadata
       if: steps.decide.outputs.publish == 'true'
       id: meta
       uses: docker/metadata-action@v6
+      env:
+        DOCKER_METADATA_ANNOTATIONS_LEVELS: index,manifest
       with:
         images: |
           ${{ github.repository_owner }}/tftp-server
@@ -328,6 +334,7 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        annotations: ${{ steps.meta.outputs.annotations }}
 
     # Reports what actually reached the registries, read back from the pushed
     # manifest rather than restated from config. Never fails the run: a release
