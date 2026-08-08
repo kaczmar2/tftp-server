@@ -99,13 +99,12 @@ jobs:
           echo "| create tag | \`$CREATE_TAG\` |"
         } >> "$GITHUB_STEP_SUMMARY"
 
-    # GitHub runners no longer ship QEMU, so the arm64 and arm/v7 builds
-    # fail without this. The emulator version is intentionally not pinned:
-    # the "Build all published platforms" step below catches a bad emulator
-    # on the next push, and staying current means we get upstream fixes.
-    - name: Set up QEMU for cross-architecture builds
-      uses: docker/setup-qemu-action@v4
-
+    # No setup-qemu-action here on purpose. The docker-container driver runs
+    # builds inside moby/buildkit, which ships its own emulators
+    # (buildkit-qemu-aarch64, buildkit-qemu-arm, ...), so cross-architecture
+    # builds do not need binfmt handlers on the host. The "Build all published
+    # platforms" step below is what protects us: if emulation ever breaks, it
+    # fails on the next push rather than at publish time.
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
       
