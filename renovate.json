@@ -19,7 +19,7 @@
     {
       "description": [
         "Automerge base image updates. pinDigest is the first pin, digest is every bump after.",
-        "Do not add minimumReleaseAge here. A digest update carries no timestamp, so the update would be held and never merge."
+        "Do not add minimumReleaseAge. A digest update carries no timestamp, so it would be held pending and never merge."
       ],
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pinDigest", "digest"],
@@ -27,10 +27,9 @@
     },
     {
       "description": [
-        "Never automerge GitHub Action updates. A person must review every one.",
-        "These actions run with the Docker Hub token and the GITHUB_TOKEN, so any code they pull in can publish images as us.",
-        "Do not replace this review with minimumReleaseAge. It does not work for actions. The github-tags datasource timestamps when a version was first released, not when a tag was re-pushed. If an attacker force-pushes an existing tag to new commits, the digest update ages against the original release date and passes the delay at once.",
-        "A delay would therefore postpone every legitimate update and stop none of the attack. See https://docs.renovatebot.com/key-concepts/minimum-release-age/"
+        "Never automerge GitHub Action updates. Actions run with the Docker Hub token and the GITHUB_TOKEN, so a person must review every one.",
+        "Do not replace this with minimumReleaseAge. It ages from a version's first release, not from a tag re-push, so a force-pushed tag clears the delay at once.",
+        "Keep the trailing comments at the major tag, such as # v7. An exact version like # v7.0.1 turns these into patch and minor updates, which another rule could automerge."
       ],
       "matchManagers": ["github-actions"],
       "automerge": false
