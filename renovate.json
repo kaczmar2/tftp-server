@@ -19,9 +19,7 @@
     {
       "description": [
         "Automerge base image updates. pinDigest is the first pin, digest is every bump after.",
-        "Do not add minimumReleaseAge here. It cannot work for a digest update. Renovate resolves a digest through the registry manifest API, which returns no timestamp, so the update has no date to age against. Docker Hub does report tag_last_pushed, but only on its repositories API, which Renovate reads for version updates and not for digest updates.",
-        "The result either way is useless. Under the default minimumReleaseAgeBehaviour of timestamp-required the base image update is held forever and never merges. Under timestamp-optional it passes at once, so the delay does nothing.",
-        "A delay would only work if the Dockerfile tracked a version tag such as alpine:3.24, because a version update does carry a release timestamp."
+        "Do not add minimumReleaseAge here. A digest update carries no timestamp, so the update would be held and never merge."
       ],
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pinDigest", "digest"],
