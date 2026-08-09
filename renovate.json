@@ -2,7 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    "docker:pinDigests"
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests"
   ],
   "platformAutomerge": false,
   "automergeStrategy": "squash",
@@ -16,16 +17,25 @@
       "enabled": false
     },
     {
-      "description": "Automerge base image updates. pinDigest is the first pin, digest is every bump after.",
+      "description": [
+        "Automerge base image updates. pinDigest is the first pin, digest is every bump after.",
+        "Do not add minimumReleaseAge here. It cannot work for a digest update. Renovate resolves a digest through the registry manifest API, which returns no timestamp, so the update has no date to age against. Docker Hub does report tag_last_pushed, but only on its repositories API, which Renovate reads for version updates and not for digest updates.",
+        "The result either way is useless. Under the default minimumReleaseAgeBehaviour of timestamp-required the base image update is held forever and never merges. Under timestamp-optional it passes at once, so the delay does nothing.",
+        "A delay would only work if the Dockerfile tracked a version tag such as alpine:3.24, because a version update does carry a release timestamp."
+      ],
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pinDigest", "digest"],
       "automerge": true
     },
     {
-      "description": "Automerge minor and patch updates to GitHub Actions.",
+      "description": [
+        "Never automerge GitHub Action updates. A person must review every one.",
+        "These actions run with the Docker Hub token and the GITHUB_TOKEN, so any code they pull in can publish images as us.",
+        "Do not replace this review with minimumReleaseAge. It does not work for actions. The github-tags datasource timestamps when a version was first released, not when a tag was re-pushed. If an attacker force-pushes an existing tag to new commits, the digest update ages against the original release date and passes the delay at once.",
+        "A delay would therefore postpone every legitimate update and stop none of the attack. See https://docs.renovatebot.com/key-concepts/minimum-release-age/"
+      ],
       "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
+      "automerge": false
     },
     {
       "description": "Major updates need review.",
