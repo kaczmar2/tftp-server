@@ -57,7 +57,7 @@ docker run -d \
   --name tftp-server \
   --network host \
   --restart unless-stopped \
-  -e TZ=America/Denver \
+  -e TZ=Etc/UTC \
   -e ENABLE_WEBSERVER=true \
   -v /srv/docker/tftp:/srv/tftp \
   -v /srv/docker/www:/srv/www \
@@ -68,7 +68,7 @@ docker run -d \
   --name tftp-server \
   --network host \
   --restart unless-stopped \
-  -e TZ=America/Denver \
+  -e TZ=Etc/UTC \
   -e ENABLE_WEBSERVER=false \
   -v /srv/docker/tftp:/srv/tftp \
   ghcr.io/kaczmar2/tftp-server
@@ -80,7 +80,8 @@ docker run -d \
 
 - **`ENABLE_WEBSERVER`**: Set to `true` to enable HTTP server, `false` for TFTP-only (default: `false`)
 - **`WEB_PORT`**: TCP port for the HTTP server (default: `80`). Only used when `ENABLE_WEBSERVER=true`.
-- **`TZ`**: Timezone for logs and timestamps (default: `UTC`)
+- **`TZ`**: Timezone for logs and timestamps (default: `Etc/UTC`). Set it to your
+  own zone, for example `America/Denver`, so log timestamps match local time.
 - **`TFTP_ARGS`**: Custom TFTP daemon arguments (see Custom TFTP Options section)
 
 **Note:** The container uses host networking, so `WEB_PORT` is the port on the host. The
@@ -137,7 +138,7 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
-      - TZ=${TZ:-UTC}
+      - TZ=${TZ:-Etc/UTC}
       - ENABLE_WEBSERVER=false
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
@@ -151,7 +152,7 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
-      - TZ=${TZ:-UTC}
+      - TZ=${TZ:-Etc/UTC}
       - ENABLE_WEBSERVER=true
       - WEB_PORT=${WEB_PORT:-80}
     volumes:
