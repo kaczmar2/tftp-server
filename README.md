@@ -26,24 +26,28 @@ mkdir -p ~/docker/tftp-server && cd ~/docker/tftp-server
 # Download docker-compose.yml
 curl -O https://raw.githubusercontent.com/kaczmar2/tftp-server/main/docker-compose.yml
 
-# Create .env file for configuration (optional)
+# Create the .env file (required - it selects the mode)
 curl -O https://raw.githubusercontent.com/kaczmar2/tftp-server/main/.env.example
 cp .env.example .env
-# Edit .env to set TZ, TFTP_ROOT, and WEB_ROOT if needed
+# Edit .env to set TZ, TFTP_ROOT, and WEB_ROOT if needed.
+# COMPOSE_PROFILES selects the mode: tftp-web (default) or tftp-only.
 
 # Create Docker bind mount directories
 sudo mkdir -p /srv/docker/tftp /srv/docker/www
 
-# Start TFTP + Web server (default)
+# Start the server
 docker compose up -d
-
-# OR start TFTP-only mode
-docker compose --profile tftp-only up -d
 
 # Check status
 docker compose ps
 docker logs tftp-server
+
+# Stop the server
+docker compose down
 ```
+
+**Important:** `.env` must set `COMPOSE_PROFILES`. Without it, `docker compose up`
+prints `no service selected` and `docker compose down` does nothing.
 
 ### Using Docker Run
 
@@ -85,8 +89,42 @@ on port 80. Change it to `80` if port 80 is free. The examples in this README as
 
 ### Docker Compose Profiles
 
-- **Default** (`docker compose up`): TFTP + Web server mode
-- **`tftp-only`** (`docker compose --profile tftp-only up`): TFTP-only mode
+Each mode has its own profile:
+
+- **`tftp-web`**: TFTP + web server mode
+- **`tftp-only`**: TFTP-only mode
+
+Select the mode in your `.env` file:
+
+```bash
+COMPOSE_PROFILES=tftp-web
+```
+
+All the normal commands then work without extra flags:
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose down
+```
+
+To switch modes, edit `COMPOSE_PROFILES` in `.env`. Stop the running container first:
+
+```bash
+docker compose down
+# change COMPOSE_PROFILES in .env
+docker compose up -d
+```
+
+For a single command in the other mode, pass `--profile`. It replaces the value in
+`.env` for that one command:
+
+```bash
+docker compose --profile tftp-only up -d
+```
+
+Run only one profile at a time. Both services use the container name `tftp-server`
+and both bind UDP port 69 on the host, so they cannot run together.
 
 ### Complete Docker Compose Example
 
@@ -106,7 +144,7 @@ services:
     profiles:
       - tftp-only
 
-  # TFTP + BusyBox httpd web server (default)
+  # TFTP + BusyBox httpd web server
   tftp-web:
     container_name: tftp-server
     image: ghcr.io/kaczmar2/tftp-server
@@ -119,10 +157,13 @@ services:
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - ${WEB_ROOT:-/srv/docker/www}:/srv/www
+    profiles:
+      - tftp-web
 ```
 
-The `tftp-web` service has no `profiles` key, so `docker compose up` starts it. The
-`tftp-only` service starts only when you ask for its profile.
+Both services use the container name `tftp-server`, so each one needs its own profile.
+Docker Compose rejects the file if two active services share a container name. This is
+why neither service is the default.
 
 ## Directory Structure
 

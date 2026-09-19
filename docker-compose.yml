@@ -14,7 +14,7 @@ services:
     profiles:
       - tftp-only
 
-  # TFTP + BusyBox httpd web server (default)
+  # TFTP + BusyBox httpd web server
   tftp-web:
     container_name: tftp-server
     image: ghcr.io/kaczmar2/tftp-server
@@ -28,3 +28,5 @@ services:
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
       - ${WEB_ROOT:-/srv/docker/www}:/srv/www
+    profiles:
+      - tftp-web
