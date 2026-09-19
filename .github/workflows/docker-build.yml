@@ -148,7 +148,6 @@ jobs:
         docker run -d \
           --name tftp-test \
           --network host \
-          -e TZ=Etc/UTC \
           -e ENABLE_WEBSERVER=false \
           -v /srv/docker/tftp:/srv/tftp \
           tftp-server:test
@@ -204,7 +203,6 @@ jobs:
         docker run -d \
           --name tftp-test \
           --network host \
-          -e TZ=Etc/UTC \
           -e ENABLE_WEBSERVER=false \
           -e TFTP_ARGS="--foreground --secure --create --verbosity 4 --user nobody" \
           -v /srv/docker/tftp:/srv/tftp \
@@ -253,7 +251,6 @@ jobs:
         docker run -d \
           --name tftp-test-web \
           --network host \
-          -e TZ=Etc/UTC \
           -e ENABLE_WEBSERVER=true \
           -v /srv/docker/tftp:/srv/tftp \
           -v /srv/docker/www:/srv/www \

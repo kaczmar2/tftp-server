@@ -29,7 +29,7 @@ curl -O https://raw.githubusercontent.com/kaczmar2/tftp-server/main/docker-compo
 # Create the .env file (required - it selects the mode)
 curl -O https://raw.githubusercontent.com/kaczmar2/tftp-server/main/.env.example
 cp .env.example .env
-# Edit .env to set TZ, TFTP_ROOT, and WEB_ROOT if needed.
+# Edit .env to set TFTP_ROOT and WEB_ROOT if needed.
 # COMPOSE_PROFILES selects the mode: tftp-web (default) or tftp-only.
 
 # Create Docker bind mount directories
@@ -57,7 +57,6 @@ docker run -d \
   --name tftp-server \
   --network host \
   --restart unless-stopped \
-  -e TZ=Etc/UTC \
   -e ENABLE_WEBSERVER=true \
   -v /srv/docker/tftp:/srv/tftp \
   -v /srv/docker/www:/srv/www \
@@ -68,7 +67,6 @@ docker run -d \
   --name tftp-server \
   --network host \
   --restart unless-stopped \
-  -e TZ=Etc/UTC \
   -e ENABLE_WEBSERVER=false \
   -v /srv/docker/tftp:/srv/tftp \
   ghcr.io/kaczmar2/tftp-server
@@ -80,8 +78,6 @@ docker run -d \
 
 - **`ENABLE_WEBSERVER`**: Set to `true` to enable HTTP server, `false` for TFTP-only (default: `false`)
 - **`WEB_PORT`**: TCP port for the HTTP server (default: `80`). Only used when `ENABLE_WEBSERVER=true`.
-- **`TZ`**: Timezone for logs and timestamps (default: `Etc/UTC`). Set it to your
-  own zone, for example `America/Denver`, so log timestamps match local time.
 - **`TFTP_ARGS`**: Custom TFTP daemon arguments (see Custom TFTP Options section)
 
 **Note:** The container uses host networking, so `WEB_PORT` is the port on the host. The
@@ -138,7 +134,6 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
-      - TZ=${TZ:-Etc/UTC}
       - ENABLE_WEBSERVER=false
     volumes:
       - ${TFTP_ROOT:-/srv/docker/tftp}:/srv/tftp
@@ -152,7 +147,6 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
-      - TZ=${TZ:-Etc/UTC}
       - ENABLE_WEBSERVER=true
       - WEB_PORT=${WEB_PORT:-80}
     volumes:
@@ -181,12 +175,17 @@ why neither service is the default.
 ```
 /srv/docker/www/          # Host directory (mapped to container /srv/www)
 ├── index.html            # Served via HTTP at http://server/
-├── boot-scripts/         # Directory listing available
+├── boot-scripts/         # Subdirectories work; files are served by exact path
 │   ├── script1.sh        # Served via HTTP at http://server/boot-scripts/script1.sh
 │   └── script2.py
 └── documentation/
     └── readme.txt
 ```
+
+**No directory browsing.** BusyBox `httpd` in this image is built without
+directory indexing, so a request for a directory returns `404`. Files are served
+only by their exact path. Request `/boot-scripts/script1.sh`, not
+`/boot-scripts/`. A request for `/` works only if `index.html` exists.
 
 ## Usage
 
@@ -243,7 +242,7 @@ docker logs tftp-server | grep "response:"
 
 **Log examples:**
 ```
-# TFTP requests (detailed)
+# TFTP requests (detailed). The timestamp is always UTC - see the note below.
 <29>Jan 16 10:30:15 in.tftpd[25]: RRQ from 192.168.1.100 filename bootfile.txt
 
 # HTTP requests (minimal format - IP, port, status only)
@@ -255,6 +254,11 @@ Starting TFTP server with process supervisor...
 Web server enabled - HTTP accessible on port 80 (PID: 16)
 TFTP server started (PID: 17)
 ```
+
+**TFTP timestamps are always UTC.** `in.tftpd` writes through syslog, and the
+musl C library that Alpine uses formats syslog timestamps in UTC. No environment
+variable or bind mount changes this. Convert them when you read the logs, or use
+a log viewer that shows the time Docker recorded for each line.
 
 ### HTTP Log Format
 
